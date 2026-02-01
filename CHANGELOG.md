@@ -1,5 +1,48 @@
 # Changelog - Sistema Natalia
 
+## [1.2.1] - 2026-02-01
+
+### Added
+- **Documentación financiera completa de rentabilidad vacacional**
+  - Nuevo archivo: `SIMULACION-VACACIONAL.md`
+  - Análisis detallado de 61 apartamentos
+  - Proyecciones mensuales y anuales de ingresos
+  - ROI estimado por tipología (8.42% - 17.73%)
+  - Margen de explotación total: $1,661,110.62/año
+
+- **Información financiera estructurada**
+  - 4 tipologías de apartamentos con métricas detalladas
+  - Análisis estacional (alta, media, baja temporada)
+  - Estructura de costes completa (operación, fees, garantías)
+  - Escenarios de rendimiento (optimista, base, conservador)
+  - Comparativas y recomendaciones de inversión
+
+### Changed
+- README.md actualizado con enlace a simulación vacacional
+- Natalia ahora puede responder consultas sobre rentabilidad e inversión
+
+### Technical Details
+**Fuente de datos:**
+- Google Sheets: Simulación Vacacional Salado Resort
+- Sheet ID: 11-g_lRxoadl0ootxioa0IOFxHpHsxAhM
+- Formato: Excel (.xlsx) → Markdown documentado
+
+**Métricas clave documentadas:**
+- ADR (Average Daily Rate): $125.83 promedio
+- Ocupación promedio: 67.25%
+- RevPAR por mes y temporada
+- Room Nights (RN) mensuales
+- Costes operativos: 18% de ingresos brutos
+
+**Uso en producción:**
+Natalia puede ahora responder preguntas sobre:
+- "¿Cuál es la rentabilidad de Salado Resort?"
+- "¿Qué ROI tienen los apartamentos?"
+- "¿Cuánto genera un apartamento de 1 habitación?"
+- "¿Cuál es la mejor inversión en Salado?"
+
+---
+
 ## [1.2.0] - 2026-02-01
 
 ### Added

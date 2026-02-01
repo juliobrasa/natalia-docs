@@ -1,10 +1,15 @@
 # Natalia - Sistema de Envío de Imágenes Automático
 
-**Versión:** 1.2.0
+**Versión:** 1.2.1
 **Fecha:** 2026-02-01
 **Estado:** ✅ Producción
 
-## 🆕 Novedades v1.2.0
+## 🆕 Novedades v1.2.1
+- ✅ Documentación financiera: simulación de rentabilidad vacacional
+- ✅ Análisis de 61 apartamentos con proyecciones de ROI
+- ✅ Natalia puede responder consultas sobre inversión y rentabilidad
+
+## Novedades v1.2.0
 - ✅ 12 nuevas imágenes de presentación comercial
 - ✅ 5 categorías inteligentes: playa, ubicación, golf, piscina, edificio
 - ✅ Total 32 imágenes disponibles en el sistema
@@ -201,7 +206,8 @@ curl -X POST http://194.41.119.117:18790/api/chat \
 - **Implementación técnica:** [IMPLEMENTACION-TECNICA.md](./IMPLEMENTACION-TECNICA.md)
 - **Troubleshooting:** [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
 - **Catálogo de amenidades:** [AMENIDADES.md](./AMENIDADES.md)
-- **Catálogo comercial:** [IMAGENES-COMERCIALES.md](./IMAGENES-COMERCIALES.md) 🆕
+- **Catálogo comercial:** [IMAGENES-COMERCIALES.md](./IMAGENES-COMERCIALES.md)
+- **Simulación vacacional:** [SIMULACION-VACACIONAL.md](./SIMULACION-VACACIONAL.md) 🆕
 - **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 - **API Reference:** [API-REFERENCE.md](./API-REFERENCE.md)
 
@@ -213,5 +219,5 @@ curl -X POST http://194.41.119.117:18790/api/chat \
 
 ---
 
-**Última actualización:** 2026-02-01 21:15 UTC
-**Versión:** 1.2.0
+**Última actualización:** 2026-02-01 21:20 UTC
+**Versión:** 1.2.1
