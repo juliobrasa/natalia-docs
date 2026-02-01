@@ -1,8 +1,13 @@
 # Natalia - Sistema de Envío de Imágenes Automático
 
-**Versión:** 1.0.0
+**Versión:** 1.1.0
 **Fecha:** 2026-02-01
 **Estado:** ✅ Producción
+
+## 🆕 Novedades v1.1.0
+- ✅ 6 nuevas imágenes de amenidades (piscinas y fachada)
+- ✅ Detección inteligente de consultas sobre amenidades
+- ✅ Priorización automática de amenidades vs exteriores
 
 ## Descripción
 
@@ -34,7 +39,9 @@ Natalia es una coordinadora inteligente con capacidades de RAG (Retrieval-Augmen
 ✅ **Envío automático de imágenes**
 - Detección automática de solicitudes de fotos
 - Máximo 3 imágenes por respuesta
-- Imágenes de alta calidad del servidor local
+- 20 imágenes disponibles: 14 exteriores + 6 amenidades
+- Categorización inteligente (amenidades, exteriores, renders)
+- Imágenes optimizadas para WhatsApp/Telegram (~370KB)
 
 ✅ **Contexto conversacional**
 - Mantiene historial de conversación
@@ -43,12 +50,21 @@ Natalia es una coordinadora inteligente con capacidades de RAG (Retrieval-Augmen
 
 ## Uso Rápido
 
-**Ejemplo 1 - Solicitar fotos:**
+**Ejemplo 1 - Solicitar fotos generales:**
 ```
 Usuario: "Fotos de Salado"
 Natalia: [Texto descriptivo del resort]
          [Imagen 1: Vista exterior]
-         [Imagen 2: Áreas comunes]
+         [Imagen 2: Render apartamento]
+```
+
+**Ejemplo 1b - Solicitar amenidades:**
+```
+Usuario: "Fotos de la piscina de Salado"
+Natalia: [Texto sobre las amenidades]
+         [Imagen 1: Piscina principal]
+         [Imagen 2: Piscina Bávaro]
+         [Imagen 3: Áreas recreativas]
 ```
 
 **Ejemplo 2 - Información general:**
@@ -65,10 +81,15 @@ Natalia: [Respuesta precisa basada en documentos]
 
 ## Palabras Clave que Activan Imágenes
 
+**Solicitud de fotos:**
 ```javascript
 ['foto', 'imagen', 'picture', 'muestra', 'ver', 'envia',
  'pasa', 'envía', 'manda', 'dame']
 ```
+
+**Categorías específicas:**
+- **Amenidades:** `amenidad`, `piscina`, `pool`, `fachada`, `facade`, `instalaciones`, `facilities`
+- **Generales:** `salado`, `resort`, `apartamento`, `punta cana`, `golf`, `playa`
 
 ## Arquitectura Simplificada
 
@@ -175,7 +196,8 @@ curl -X POST http://194.41.119.117:18790/api/chat \
 
 - **Implementación técnica:** [IMPLEMENTACION-TECNICA.md](./IMPLEMENTACION-TECNICA.md)
 - **Troubleshooting:** [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
-- **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
+- **Catálogo de amenidades:** [AMENIDADES.md](./AMENIDADES.md) 🆕
+- **Changelog:** [CHANGELOG.md](./CHANGELOG.md) 🆕
 - **API Reference:** [API-REFERENCE.md](./API-REFERENCE.md)
 
 ## Contacto y Soporte
@@ -186,4 +208,5 @@ curl -X POST http://194.41.119.117:18790/api/chat \
 
 ---
 
-**Última actualización:** 2026-02-01 20:30 UTC
+**Última actualización:** 2026-02-01 21:00 UTC
+**Versión:** 1.1.0
