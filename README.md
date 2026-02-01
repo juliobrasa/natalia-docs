@@ -1,13 +1,14 @@
 # Natalia - Sistema de Envío de Imágenes Automático
 
-**Versión:** 1.1.0
+**Versión:** 1.2.0
 **Fecha:** 2026-02-01
 **Estado:** ✅ Producción
 
-## 🆕 Novedades v1.1.0
-- ✅ 6 nuevas imágenes de amenidades (piscinas y fachada)
-- ✅ Detección inteligente de consultas sobre amenidades
-- ✅ Priorización automática de amenidades vs exteriores
+## 🆕 Novedades v1.2.0
+- ✅ 12 nuevas imágenes de presentación comercial
+- ✅ 5 categorías inteligentes: playa, ubicación, golf, piscina, edificio
+- ✅ Total 32 imágenes disponibles en el sistema
+- ✅ Keywords expandidas con términos en inglés y español
 
 ## Descripción
 
@@ -39,9 +40,9 @@ Natalia es una coordinadora inteligente con capacidades de RAG (Retrieval-Augmen
 ✅ **Envío automático de imágenes**
 - Detección automática de solicitudes de fotos
 - Máximo 3 imágenes por respuesta
-- 20 imágenes disponibles: 14 exteriores + 6 amenidades
-- Categorización inteligente (amenidades, exteriores, renders)
-- Imágenes optimizadas para WhatsApp/Telegram (~370KB)
+- **32 imágenes disponibles:** 6 playa + 8 amenidades + 2 ubicación + 1 golf + 1 edificio + 14 exteriores
+- Categorización inteligente: playa, amenidades, ubicación, golf, edificio
+- Imágenes optimizadas para WhatsApp/Telegram (~370-700KB)
 
 ✅ **Contexto conversacional**
 - Mantiene historial de conversación
@@ -88,8 +89,11 @@ Natalia: [Respuesta precisa basada en documentos]
 ```
 
 **Categorías específicas:**
+- **Playa:** `playa`, `beach`, `mar`, `sea`, `arena`, `sand`, `costa`, `shore`
 - **Amenidades:** `amenidad`, `piscina`, `pool`, `fachada`, `facade`, `instalaciones`, `facilities`
-- **Generales:** `salado`, `resort`, `apartamento`, `punta cana`, `golf`, `playa`
+- **Ubicación:** `ubicacion`, `location`, `mapa`, `map`, `donde`, `where`, `aerial`, `aereo`
+- **Golf:** `golf`, `campo`, `course`, `green`, `hoyo`, `hole`
+- **Edificio:** `edificio`, `building`, `apartamento`, `apartment`, `unidad`, `unit`
 
 ## Arquitectura Simplificada
 
@@ -196,8 +200,9 @@ curl -X POST http://194.41.119.117:18790/api/chat \
 
 - **Implementación técnica:** [IMPLEMENTACION-TECNICA.md](./IMPLEMENTACION-TECNICA.md)
 - **Troubleshooting:** [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
-- **Catálogo de amenidades:** [AMENIDADES.md](./AMENIDADES.md) 🆕
-- **Changelog:** [CHANGELOG.md](./CHANGELOG.md) 🆕
+- **Catálogo de amenidades:** [AMENIDADES.md](./AMENIDADES.md)
+- **Catálogo comercial:** [IMAGENES-COMERCIALES.md](./IMAGENES-COMERCIALES.md) 🆕
+- **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 - **API Reference:** [API-REFERENCE.md](./API-REFERENCE.md)
 
 ## Contacto y Soporte
@@ -208,5 +213,5 @@ curl -X POST http://194.41.119.117:18790/api/chat \
 
 ---
 
-**Última actualización:** 2026-02-01 21:00 UTC
-**Versión:** 1.1.0
+**Última actualización:** 2026-02-01 21:15 UTC
+**Versión:** 1.2.0

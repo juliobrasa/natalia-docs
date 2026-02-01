@@ -1,5 +1,68 @@
 # Changelog - Sistema Natalia
 
+## [1.2.0] - 2026-02-01
+
+### Added
+- **12 nuevas imágenes de presentación comercial Salado**
+  - 6 imágenes de playa (pier, vistas aéreas, lifestyle)
+  - 2 mapas de ubicación (aéreas cercana y amplia)
+  - 1 imagen de campo de golf
+  - 2 imágenes de piscina adicionales (agregadas a amenidades)
+  - 1 render de edificio/fachada moderna
+  - Total optimizado: ~7.6MB (12 imágenes de alta calidad)
+  - URLs: `http://194.41.119.21:9001/salado-{categoria}-{N}.jpg`
+
+- **5 categorías de detección automática**
+  - **Playa:** playa|beach|mar|sea|arena|sand|costa|shore
+  - **Ubicación:** ubicacion|location|mapa|map|donde|where|aerial|aereo
+  - **Golf:** golf|campo|course|green|hoyo|hole
+  - **Edificio:** edificio|building|apartamento|apartment|unidad|unit
+  - **Amenidades:** expandida con 2 piscinas comerciales adicionales
+
+- **Documentación completa**
+  - Nuevo archivo: `IMAGENES-COMERCIALES.md` con catálogo detallado
+  - 12 imágenes documentadas con descripciones y keywords
+  - Proceso completo de extracción desde presentación PDF
+  - Guías de mantenimiento y testing
+
+### Changed
+- Actualizado `server.js` con lógica multi-categoría (líneas 90-156)
+- Array `amenidadesUrls` expandido de 6 a 8 imágenes
+- Total de imágenes disponibles: 20 → 32 (incremento 60%)
+- README.md actualizado con nuevas categorías y keywords
+- Versión del sistema: 1.1.0 → 1.2.0
+
+### Technical Details
+**Fuente de imágenes:**
+- Presentación comercial Google Slides (42 páginas)
+- Extraídas 195 imágenes PNG, seleccionadas 12 mejores
+- Criterio: tamaño >1MB, contenido relevante, diversidad
+
+**Procesamiento:**
+- Herramienta: pdfimages para extracción, ImageMagick para optimización
+- Optimización: -resize 1920x -quality 85
+- Reducción promedio: ~85% de tamaño original
+- Formatos: PNG → JPG
+
+**Código modificado:**
+```javascript
+// server.js - Nuevas categorías agregadas
+// Playa (líneas 107-118)
+// Ubicación (líneas 120-128)
+// Golf (líneas 130-138)
+// Edificio (líneas 140-148)
+// Amenidades actualizada con piscinas 7 y 8 (líneas 97-98)
+```
+
+**Deployment:**
+```bash
+# Imágenes subidas a 194.41.119.21:/root/salado-images/
+# Servicio reiniciado: systemctl restart natalia-whatsapp
+# Status: ✅ Active (running) desde 2026-02-01 21:13:43 UTC
+```
+
+---
+
 ## [1.1.0] - 2026-02-01
 
 ### Added
