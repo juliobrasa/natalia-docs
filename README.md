@@ -1,223 +1,154 @@
-# Natalia - Sistema de Envío de Imágenes Automático
+# Natalia - Universo Salado
 
-**Versión:** 1.2.1
-**Fecha:** 2026-02-01
-**Estado:** ✅ Producción
+**Version:** 2.0.0  
+**Fecha:** 2026-02-08  
+**Estado:** Produccion
 
-## 🆕 Novedades v1.2.1
-- ✅ Documentación financiera: simulación de rentabilidad vacacional
-- ✅ Análisis de 61 apartamentos con proyecciones de ROI
-- ✅ Natalia puede responder consultas sobre inversión y rentabilidad
+## Descripcion
 
-## Novedades v1.2.0
-- ✅ 12 nuevas imágenes de presentación comercial
-- ✅ 5 categorías inteligentes: playa, ubicación, golf, piscina, edificio
-- ✅ Total 32 imágenes disponibles en el sistema
-- ✅ Keywords expandidas con términos en inglés y español
+Natalia es la coordinadora inteligente de **Universo Salado** - un complejo de tres urbanizaciones exclusivas en White Sands, Bavaro, Punta Cana:
 
-## Descripción
+- **Salado 1** - Primera fase, en venta. 3 bloques (A, B, C), 5 tipologias, desde EUR165,000
+- **Salado 2** - Segunda fase, en diseno. Parcela contigua a Salado 1
+- **Salado 3** - Tercera fase, en desarrollo. 22 renders preliminares disponibles
 
-Natalia es una coordinadora inteligente con capacidades de RAG (Retrieval-Augmented Generation) que puede enviar automáticamente imágenes relevantes junto con respuestas de texto a través de WhatsApp y Telegram.
+Natalia gestiona WhatsApp, Telegram, web chat, y un panel de contenido para redes sociales.
 
-## Canales Disponibles
+## Componentes
 
-### WhatsApp
-- **Número:** +34 685 80 59 24
-- **Plataforma:** WhatsApp Business API
-- **Backend:** Laravel/PHP en panel.redservicio.net
+### 1. WhatsApp Bridge (`server.js`)
+- **Puerto:** 18790
+- **Numero:** +34 685 80 59 24
+- **Motor IA:** DeepSeek API
+- **RAG:** Qdrant Vector DB (localhost:9000)
+- Rate limiting, sesiones persistentes (SQLite), envio de imagenes automatico
 
-### Telegram
+### 2. Panel de Contenido (`salado-panel/`)
+- **URL:** https://panel.saladoresort.com/admin
+- **Stack:** Laravel 11 + Filament PHP 3 + MariaDB
+- **Funcionalidades:**
+  - CRUD de Posts, Campanas, Proyectos
+  - Dashboard con widgets de estadisticas
+  - Generador de contenido con IA (DeepSeek)
+  - Soporte multi-proyecto (Salado 1, 2, 3)
+  - 30 posts pre-generados para calendario de contenido
+  - Landing page en panel.saladoresort.com
+
+### 3. Clips de Video (`clips-voz/`)
+- **URL:** https://panel.saladoresort.com/clips.html
+- 5 clips con locucion (es-DO, Ramona) + musica tropical
+- Formatos: Reels (9:16), Stories (9:16), Posts (1:1), Facebook
+
+### 4. Telegram Bot
 - **Bot:** @Natalia_jefa_bot
-- **ID:** 8597765277
-- **Backend:** Node.js en natalia (194.41.119.117)
+- **Servicio:** telegram-natalia.service
 
-### Web Chat
-- **URL:** https://natalia.soporteclientes.net/chat
-- **Backend:** MoltBot Gateway
+### 5. MoltBot Gateway
+- **Puerto:** 3100
+- **Web Chat:** https://natalia.soporteclientes.net/chat
 
-## Características
+## Servicios en natalia (194.41.119.117)
 
-✅ **Respuestas inteligentes con RAG**
-- Búsqueda semántica en base de conocimientos
-- Colección: marketing-inmobiliaria
-- Backend: Qdrant Vector DB
+| Servicio | Puerto | systemd |
+|----------|--------|---------|
+| Natalia WhatsApp Bridge | 18790 | natalia-whatsapp.service |
+| MoltBot Gateway | 3100 | moltbot.service |
+| Telegram Bot | - | telegram-natalia.service |
+| WhatsApp Webhook | - | whatsapp-webhook.service |
+| RAG Service (Qdrant) | 9000 | rag-service |
+| PHP-FPM 8.2 | sock | php8.2-fpm.service |
+| MariaDB | 3306 | mariadb.service |
+| Nginx | 80/443 | nginx.service |
 
-✅ **Envío automático de imágenes**
-- Detección automática de solicitudes de fotos
-- Máximo 3 imágenes por respuesta
-- **32 imágenes disponibles:** 6 playa + 8 amenidades + 2 ubicación + 1 golf + 1 edificio + 14 exteriores
-- Categorización inteligente: playa, amenidades, ubicación, golf, edificio
-- Imágenes optimizadas para WhatsApp/Telegram (~370-700KB)
+## Media disponible
 
-✅ **Contexto conversacional**
-- Mantiene historial de conversación
-- Tickets integrados en WhatsApp
-- Respuestas contextuales
+### Salado 1
+- 3 renders (fachada dia/noche, vista frontal Bavaro)
+- 30 posts con imagenes para calendario de contenido
+- Video inicio de obras (5.3MB)
+- Video promocional (71MB, 1080p)
 
-## Uso Rápido
+### Salado 3
+- 22 renders preliminares (Escenas 3D, 673MB total)
 
-**Ejemplo 1 - Solicitar fotos generales:**
-```
-Usuario: "Fotos de Salado"
-Natalia: [Texto descriptivo del resort]
-         [Imagen 1: Vista exterior]
-         [Imagen 2: Render apartamento]
-```
+### Universo Salado (compartido)
+- 3 videos playa White Sands (5.4MB + 9.8MB + 458MB 4K)
+- 5 clips con locucion para redes sociales
+- Plano urbanistico Salado 1 + Salado 2
+- Vista aerea Google Earth
 
-**Ejemplo 1b - Solicitar amenidades:**
-```
-Usuario: "Fotos de la piscina de Salado"
-Natalia: [Texto sobre las amenidades]
-         [Imagen 1: Piscina principal]
-         [Imagen 2: Piscina Bávaro]
-         [Imagen 3: Áreas recreativas]
-```
+### URLs de media
+- Imagenes: https://natalia.soporteclientes.net/images/
+- Salado 3: https://natalia.soporteclientes.net/images/salado3/
+- Clips sin audio: https://natalia.soporteclientes.net/images/clips/
+- Clips con musica: https://natalia.soporteclientes.net/images/clips-music/
+- Clips con voz: https://natalia.soporteclientes.net/images/clips-voz/
 
-**Ejemplo 2 - Información general:**
-```
-Usuario: "Información del resort"
-Natalia: [Descripción detallada con datos del RAG]
-```
-
-**Ejemplo 3 - Consulta técnica:**
-```
-Usuario: "Cuántos apartamentos tiene?"
-Natalia: [Respuesta precisa basada en documentos]
-```
-
-## Palabras Clave que Activan Imágenes
-
-**Solicitud de fotos:**
-```javascript
-['foto', 'imagen', 'picture', 'muestra', 'ver', 'envia',
- 'pasa', 'envía', 'manda', 'dame']
-```
-
-**Categorías específicas:**
-- **Playa:** `playa`, `beach`, `mar`, `sea`, `arena`, `sand`, `costa`, `shore`
-- **Amenidades:** `amenidad`, `piscina`, `pool`, `fachada`, `facade`, `instalaciones`, `facilities`
-- **Ubicación:** `ubicacion`, `location`, `mapa`, `map`, `donde`, `where`, `aerial`, `aereo`
-- **Golf:** `golf`, `campo`, `course`, `green`, `hoyo`, `hole`
-- **Edificio:** `edificio`, `building`, `apartamento`, `apartment`, `unidad`, `unit`
-
-## Arquitectura Simplificada
+## Estructura del repositorio
 
 ```
-Usuario (WhatsApp/Telegram)
-    ↓
-Cliente (PHP/Node.js)
-    ↓
-Natalia Bridge (localhost:18790)
-    ↓
-RAG Service (194.41.119.21:9000)
-    ↓
-Qdrant Vector DB + Image Server
-    ↓
-Respuesta: texto + mediaUrls[]
+natalia-docs/
+├── server.js                    # WhatsApp Bridge (produccion)
+├── package.json                 # Dependencias Node.js
+├── sessions-admin.sh            # Herramienta admin de sesiones
+├── README.md                    # Este archivo
+├── salado-panel/                # Panel Laravel (archivos clave)
+│   ├── app/
+│   │   ├── Filament/
+│   │   │   ├── Resources/       # PostResource, CampaignResource, ProjectResource
+│   │   │   ├── Pages/           # AiGenerator
+│   │   │   └── Widgets/         # Stats, Chart, LatestPosts
+│   │   └── Models/              # Post, PostImage, Campaign, Project, Setting
+│   ├── database/
+│   │   ├── migrations/          # Tablas: posts, post_images, campaigns, settings, projects
+│   │   └── seeders/             # ContentCalendarSeeder, ProjectSeeder
+│   ├── resources/views/
+│   │   ├── welcome.blade.php    # Landing page
+│   │   └── filament/pages/      # Vista AI Generator
+│   ├── clips.html               # Preview de video clips
+│   └── nginx-panel.saladoresort.com.conf
+└── docs/                        # Documentacion historica
+    ├── AMENIDADES.md
+    ├── CATALOGO-IMAGENES-SALADO.md
+    ├── IMAGENES-COMERCIALES.md
+    └── SIMULACION-VACACIONAL.md
 ```
 
-## Servicios y Puertos
+## Reiniciar servicios
 
-| Servicio | Host | Puerto | Descripción |
-|----------|------|--------|-------------|
-| Natalia Bridge | 194.41.119.117 | 18790 | API principal |
-| RAG Service | 194.41.119.21 | 9000 | Búsqueda semántica |
-| Image Server | 194.41.119.21 | 9001 | HTTP simple Python |
-| MoltBot Gateway | 194.41.119.117 | 3100 | WebSocket control |
-
-## Monitoreo y Logs
-
-### Ver logs de WhatsApp
 ```bash
-ssh root@panel.redservicio.net
-tail -f /home/panel.redservicio.net/public_html/storage/logs/laravel.log | grep "AI response\|image"
-```
-
-### Ver logs de Telegram
-```bash
-ssh root@194.41.119.117
-tail -f /tmp/telegram-bot.log
-```
-
-### Ver logs de Natalia Bridge
-```bash
-ssh root@194.41.119.117
-journalctl -u natalia-whatsapp -f
-```
-
-### Ver logs del RAG
-```bash
-ssh root@194.41.119.21
-journalctl -u rag-service -f
-```
-
-## Reiniciar Servicios
-
-### WhatsApp (Laravel)
-```bash
-# No requiere reinicio, cambios son inmediatos
-```
-
-### Telegram
-```bash
-ssh root@194.41.119.117
-pkill -f telegram-natalia-bot
-nohup node /root/telegram-natalia-bot.js > /tmp/telegram-bot.log 2>&1 &
-```
-
-### Natalia Bridge
-```bash
-ssh root@194.41.119.117
+# WhatsApp Bridge
 systemctl restart natalia-whatsapp
-```
 
-### MoltBot
-```bash
-ssh root@194.41.119.117
+# Telegram
+systemctl restart telegram-natalia
+
+# MoltBot
 systemctl restart moltbot
+
+# Panel Laravel
+cd /var/www/salado-panel && php artisan optimize:clear && php artisan optimize
+
+# Nginx
+systemctl reload nginx
 ```
 
-## Testing Rápido
+## Test rapido
 
-### Test WhatsApp
 ```bash
-# Enviar mensaje al número: +34 685 80 59 24
-# Mensaje: "Fotos de Salado"
-# Esperado: Texto + 2-3 imágenes
-```
-
-### Test Telegram
-```bash
-# Enviar mensaje a: @Natalia_jefa_bot
-# Mensaje: "Fotos de Salado"
-# Esperado: Texto + 2-3 imágenes
-```
-
-### Test API directo
-```bash
-curl -X POST http://194.41.119.117:18790/api/chat \
+# Test WhatsApp Bridge
+curl -X POST http://localhost:18790/api/chat \
   -H "Content-Type: application/json" \
-  -d '{"messages":[{"role":"user","content":"Fotos de Salado"}],"max_tokens":500}' \
-  | jq '.choices[0].message'
+  -d {messages:[{role:user,content:Que es Universo Salado?}]}
+
+# Test RAG
+curl -X POST http://localhost:9000/query \
+  -H "Content-Type: application/json" \
+  -d {text:apartamentos salado,top_k:3}
+
+# Test Panel
+curl -s https://panel.saladoresort.com/admin | head -5
 ```
-
-## Documentación Adicional
-
-- **Implementación técnica:** [IMPLEMENTACION-TECNICA.md](./IMPLEMENTACION-TECNICA.md)
-- **Troubleshooting:** [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
-- **Catálogo de amenidades:** [AMENIDADES.md](./AMENIDADES.md)
-- **Catálogo comercial:** [IMAGENES-COMERCIALES.md](./IMAGENES-COMERCIALES.md)
-- **Simulación vacacional:** [SIMULACION-VACACIONAL.md](./SIMULACION-VACACIONAL.md) 🆕
-- **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
-- **API Reference:** [API-REFERENCE.md](./API-REFERENCE.md)
-
-## Contacto y Soporte
-
-- **Documentación:** `/root/NATALIA-DOCS/`
-- **Backups:** Ver sección de backups en cada documento técnico
-- **Logs:** Ver sección de monitoreo arriba
 
 ---
-
-**Última actualización:** 2026-02-01 21:20 UTC
-**Versión:** 1.2.1
+**Ultima actualizacion:** 2026-02-08

@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require('express');
 const axios = require('axios');
 const { exec } = require('child_process');
@@ -8,75 +9,74 @@ const execPromise = util.promisify(exec);
 const app = express();
 app.use(express.json());
 
+// Rate limiting
+const rateLimit = require("express-rate-limit");
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: { error: "Too many requests, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use("/api/chat", chatLimiter);
+
 // Configuración
-const MOLTBOT_GATEWAY = 'http://localhost:3100';
-const MOLTBOT_TOKEN = 'natalia-coordinator-token-2026';
+const MOLTBOT_GATEWAY = process.env.MOLTBOT_GATEWAY || 'http://localhost:3100';
+const MOLTBOT_TOKEN = process.env.MOLTBOT_TOKEN || 'natalia-coordinator-token-2026';
 const PORT = process.env.PORT || 18790;
-const RAG_SERVICE = 'http://localhost:9000';
-const DEEPSEEK_API = 'https://api.deepseek.com/chat/completions';
-const DEEPSEEK_KEY = 'sk-d47fe7b31106439baaf4fa35fe18b4f2';
-const SESSIONS_FILE = '/var/lib/natalia-whatsapp/sessions.json';
-// ==================== SISTEMA DE SESIONES ====================
-const conversationSessions = new Map();
-const SESSION_TIMEOUT = 365 * 24 * 60 * 60 * 1000; // 1 año
+const RAG_SERVICE = process.env.RAG_SERVICE || 'http://localhost:9000';
+const DEEPSEEK_API = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || '';
+const SESSIONS_FILE = process.env.SESSIONS_FILE || '/var/lib/natalia-whatsapp/sessions.json';
+// ==================== SISTEMA DE SESIONES (SQLite) ====================
+const Database = require('better-sqlite3');
+const SESSIONS_DB = SESSIONS_FILE.replace('.json', '.db');
+const db = new Database(SESSIONS_DB);
 
+// Crear tabla si no existe
+db.exec("CREATE TABLE IF NOT EXISTS sessions (phone TEXT PRIMARY KEY, messages TEXT NOT NULL DEFAULT '[]', last_activity INTEGER NOT NULL, first_interaction INTEGER NOT NULL)");
 
-// ==================== PERSISTENCIA DE SESIONES ====================
-
-// Guardar sesiones a disco
-function saveSessions() {
-  try {
-    const sessionsArray = Array.from(conversationSessions.entries());
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessionsArray, null, 2));
-    console.log(`[Session] 💾 Guardadas ${sessionsArray.length} sesiones a disco`);
-  } catch (error) {
-    console.error('[Session] ❌ Error al guardar sesiones:', error.message);
-  }
-}
-
-// Cargar sesiones desde disco
-function loadSessions() {
+// Migrar datos desde JSON si existe
+(function migrateFromJson() {
   try {
     if (fs.existsSync(SESSIONS_FILE)) {
-      const data = fs.readFileSync(SESSIONS_FILE, 'utf8');
-      const sessionsArray = JSON.parse(data);
-      
-      for (const [phone, session] of sessionsArray) {
-        conversationSessions.set(phone, session);
-      }
-      
-      console.log(`[Session] 📂 Cargadas ${sessionsArray.length} sesiones desde disco`);
-      
-      // Mostrar resumen
-      for (const [phone, session] of conversationSessions.entries()) {
-        console.log(`[Session]    📱 ${phone}: ${session.messages.length} mensajes`);
-      }
-    } else {
-      console.log('[Session] ℹ️  No hay sesiones previas guardadas');
+      const data = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+      const insert = db.prepare('INSERT OR IGNORE INTO sessions (phone, messages, last_activity, first_interaction) VALUES (?, ?, ?, ?)');
+      const tx = db.transaction((sessions) => {
+        for (const [phone, session] of sessions) {
+          insert.run(phone, JSON.stringify(session.messages || []), session.lastActivity || Date.now(), session.firstInteraction || Date.now());
+        }
+      });
+      tx(data);
+      const count = db.prepare('SELECT COUNT(*) as c FROM sessions').get().c;
+      console.log('[Session SQLite] Migradas ' + count + ' sesiones desde JSON');
+      fs.renameSync(SESSIONS_FILE, SESSIONS_FILE + '.migrated');
     }
-  } catch (error) {
-    console.error('[Session] ❌ Error al cargar sesiones:', error.message);
+  } catch (e) {
+    console.log('[Session SQLite] No JSON to migrate:', e.message);
   }
-}
+})();
 
-// ==================================================================
+// Prepared statements
+const stmtGet = db.prepare('SELECT * FROM sessions WHERE phone = ?');
+const stmtUpsert = db.prepare('INSERT INTO sessions (phone, messages, last_activity, first_interaction) VALUES (?, ?, ?, ?) ON CONFLICT(phone) DO UPDATE SET messages = excluded.messages, last_activity = excluded.last_activity');
+const stmtCleanup = db.prepare('DELETE FROM sessions WHERE last_activity < ?');
 
 function getSession(phoneNumber) {
-  if (!phoneNumber) {
-    return { messages: [], lastActivity: Date.now() };
+  if (!phoneNumber) return { messages: [], lastActivity: Date.now() };
+
+  const row = stmtGet.get(phoneNumber);
+  if (row) {
+    return {
+      messages: JSON.parse(row.messages),
+      lastActivity: row.last_activity,
+      firstInteraction: row.first_interaction
+    };
   }
 
-  if (!conversationSessions.has(phoneNumber)) {
-    conversationSessions.set(phoneNumber, {
-      messages: [],
-      lastActivity: Date.now(),
-      firstInteraction: Date.now()
-    });
-    console.log(`[Session] 🆕 Nueva sesión: ${phoneNumber}`);
-  }
-
-  const session = conversationSessions.get(phoneNumber);
-  session.lastActivity = Date.now();
+  const session = { messages: [], lastActivity: Date.now(), firstInteraction: Date.now() };
+  stmtUpsert.run(phoneNumber, '[]', session.lastActivity, session.firstInteraction);
+  console.log('[Session] Nueva sesion: ' + phoneNumber);
   return session;
 }
 
@@ -90,54 +90,63 @@ function addMessageToSession(phoneNumber, role, content) {
     session.messages = session.messages.slice(-250);
   }
 
-  conversationSessions.set(phoneNumber, session);
-  console.log(`[Session] 💾 ${phoneNumber}: ${session.messages.length} mensajes`);
+  stmtUpsert.run(phoneNumber, JSON.stringify(session.messages), Date.now(), session.firstInteraction);
+  console.log('[Session] ' + phoneNumber + ': ' + session.messages.length + ' mensajes');
   return session.messages;
 }
 
+// Cleanup expired sessions (1 year)
 setInterval(() => {
-  const now = Date.now();
-  let cleaned = 0;
-  for (const [phone, session] of conversationSessions.entries()) {
-    if (now - session.lastActivity > SESSION_TIMEOUT) {
-      conversationSessions.delete(phone);
-      cleaned++;
-    }
-  }
-  if (cleaned > 0) console.log(`[Session] 🧹 Limpiadas ${cleaned} sesiones`);
+  const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
+  const result = stmtCleanup.run(cutoff);
+  if (result.changes > 0) console.log('[Session] Limpiadas ' + result.changes + ' sesiones');
 }, 60 * 60 * 1000);
 
-// ============================================================
-console.log('[Session Storage] ✅ Sistema inicializado (timeout 1 año)');
+const sessionCount = db.prepare('SELECT COUNT(*) as c FROM sessions').get().c;
+console.log('[Session SQLite] Inicializado con ' + sessionCount + ' sesiones');
+console.log('[Session SQLite] DB: ' + SESSIONS_DB);
 
-// Cargar sesiones al iniciar
-loadSessions();
+// Graceful shutdown
+process.on('SIGTERM', () => { db.close(); process.exit(0); });
+process.on('SIGINT', () => { db.close(); process.exit(0); });
 
-// Guardar sesiones automáticamente cada 5 minutos
-setInterval(() => {
-  saveSessions();
-}, 5 * 60 * 1000);
-
-// Guardar sesiones al cerrar el proceso
-process.on('SIGTERM', () => {
-  console.log('[Session] 💾 Guardando sesiones antes de cerrar...');
-  saveSessions();
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('[Session] 💾 Guardando sesiones antes de cerrar...');
-  saveSessions();
-  process.exit(0);
-});
-
-console.log('[Session Storage] 💾 Persistencia a disco: ACTIVADA');
-console.log('[Session Storage] 📂 Archivo: ' + SESSIONS_FILE);
-console.log('[Session Storage] ⏰ Auto-guardado: cada 5 minutos');
 
 
 // Almacenar el número de teléfono del usuario actual
 let currentUserPhone = null;
+
+// Endpoint de metricas
+app.get('/status', (req, res) => {
+  const os = require('os');
+  const uptime = process.uptime();
+  const memUsage = process.memoryUsage();
+  const totalSessions = db.prepare('SELECT COUNT(*) as count FROM sessions').get();
+  const activeSessions = db.prepare("SELECT COUNT(*) as count FROM sessions WHERE last_activity > (strftime('%s','now') - 3600)").get();
+  res.json({
+    status: 'running',
+    uptime_seconds: Math.floor(uptime),
+    uptime_human: Math.floor(uptime/3600) + 'h ' + Math.floor((uptime%3600)/60) + 'm',
+    memory: {
+      rss_mb: Math.round(memUsage.rss / 1048576),
+      heap_mb: Math.round(memUsage.heapUsed / 1048576)
+    },
+    system: {
+      load: os.loadavg(),
+      free_mem_mb: Math.round(os.freemem() / 1048576),
+      total_mem_mb: Math.round(os.totalmem() / 1048576)
+    },
+    sessions: {
+      total: totalSessions.count,
+      active_1h: activeSessions.count
+    },
+    services: {
+      bridge: 'natalia-whatsapp-bridge:18790',
+      moltbot: 'moltbot-gateway:3100',
+      webhook: 'whatsapp-webhook:3002',
+      model: 'deepseek-chat'
+    }
+  });
+});
 
 // Endpoint de salud
 app.get('/health', (req, res) => {
@@ -148,7 +157,7 @@ app.get('/health', (req, res) => {
 function detectRealEstateContext(messages) {
   // Keywords que indican que estamos en contexto inmobiliario
   const realEstateKeywords = ['salado', 'resort', 'apartamento', 'punta cana', 'golf', 
-    'playa', 'inmobiliaria', 'propiedad', 'desarrollo', 'inversión'];
+    'playa', 'inmobiliaria', 'propiedad', 'desarrollo', 'inversión', 'plano', 'planos', 'bloque', 'tipología', 'tipologia', 'tipo a', 'tipo b', 'tipo c', 'tipo d', 'tipo e', 'masterplan', 'arquitect'];
   
   // Analizar los últimos 4 mensajes (2 intercambios)
   const recentMessages = messages.slice(-4);
@@ -206,7 +215,7 @@ app.post('/api/chat', async (req, res) => {
           // Sincronizar sesión
           const session = getSession(phoneNumber);
           session.messages = messages;
-          conversationSessions.set(phoneNumber, session);
+          stmtUpsert.run(phoneNumber, JSON.stringify(session.messages), Date.now(), session.firstInteraction || Date.now());
           console.log('[Session] 🔄 Sincronizado: ' + messages.length + ' mensajes');
         }
       }
@@ -231,7 +240,7 @@ app.post('/api/chat', async (req, res) => {
     
     // Keywords principales de inmobiliaria
     const primaryKeywords = ['salado', 'resort', 'apartamento', 'punta cana', 'golf', 'playa', 
-      'inmobiliaria', 'propiedad', 'desarrollo', 'inversión'];
+      'inmobiliaria', 'propiedad', 'desarrollo', 'inversión', 'plano', 'planos', 'bloque', 'tipología', 'tipologia', 'tipo a', 'tipo b', 'tipo c', 'tipo d', 'tipo e', 'masterplan', 'arquitect'];
     
     // Keywords de seguimiento (indican preguntas de follow-up)
     const followUpKeywords = ['barato', 'económico', 'precio', 'costo', 'cuál', 'cuánto', 
@@ -239,7 +248,7 @@ app.post('/api/chat', async (req, res) => {
       'metros', 'm²', 'tamaño', 'superficie', 'pago', 'financiamiento', 'entrega', 'amenidades', 'servicios', 'facilidades', 'ubicación', 'ubicacion'];
     
     // Keywords de imágenes
-    const imageKeywords = ['foto', 'imagen', 'picture', 'exterior', 'interior', 'muestra', 'ver', 'envia'];
+    const imageKeywords = ['foto', 'imagen', 'picture', 'exterior', 'interior', 'muestra', 'ver', 'envia', 'envíame', 'muéstrame', 'enseña', 'fotos', 'imágenes', 'galeria', 'visual', 'plano', 'planos', 'distribución', 'distribucion', 'layout'];
     
     // Combinar todas las keywords
     const allKeywords = [...primaryKeywords, ...imageKeywords];
@@ -278,7 +287,7 @@ app.post('/api/chat', async (req, res) => {
         const ragQueryResponse = await axios.post(`${RAG_SERVICE}/query`, {
           query: ragQuery,
           collection: 'marketing-inmobiliaria',
-          top_k: 5
+          top_k: 15
         }, {
           timeout: 45000
         });
@@ -298,80 +307,16 @@ app.post('/api/chat', async (req, res) => {
       } catch (ragError) {
         console.warn('[Natalia WhatsApp] RAG query failed:', ragError.message);
       }
-
-    // Agregar imágenes de amenidades si se solicitan específicamente
-    const amenidadesKeywords = /amenidad|piscina|pool|fachada|facade|instalaciones|facilities/i;
-    if (amenidadesKeywords.test(userMessage) && asksForPhotos) {
-      const amenidadesUrls = [
-        'http://194.41.119.21:9001/salado-amenidad-1.jpg', // Piscina III
-        'http://194.41.119.21:9001/salado-amenidad-3.jpg', // Piscina Bávaro y Salado
-        'http://194.41.119.21:9001/salado-amenidad-4.jpg', // Piscina II
-        'http://194.41.119.21:9001/salado-piscina-7.jpg',  // Piscina con camastros
-        'http://194.41.119.21:9001/salado-piscina-8.jpg',  // Piscina moderna render
-        'http://194.41.119.21:9001/salado-amenidad-5.jpg', // Piscina y fachada
-        'http://194.41.119.21:9001/salado-amenidad-6.jpg', // Piscina principal
-        'http://194.41.119.21:9001/salado-amenidad-2.jpg'  // Fachada calle Punta Cana
-      ];
-
-      // Priorizar amenidades sobre exteriores
-      imageUrls = amenidadesUrls.concat(imageUrls.filter(url => !url.includes('amenidad') && !url.includes('piscina')));
-      console.log('[Natalia WhatsApp] Imágenes de amenidades agregadas');
     }
 
-    // Agregar imágenes de PLAYA si se solicitan específicamente
-    const playaKeywords = /playa|beach|mar|sea|arena|sand|costa|shore/i;
-    if (playaKeywords.test(userMessage) && asksForPhotos) {
-      const playaUrls = [
-        'http://194.41.119.21:9001/salado-playa-1.jpg', // Pier con kayak
-        'http://194.41.119.21:9001/salado-playa-2.jpg', // Vista aérea playa resort
-        'http://194.41.119.21:9001/salado-playa-4.jpg', // Palmera con camastros
-        'http://194.41.119.21:9001/salado-playa-5.jpg', // Playa con gente
-        'http://194.41.119.21:9001/salado-playa-6.jpg', // Playa palmeras
-        'http://194.41.119.21:9001/salado-playa-3.jpg'  // Persona saltando
-      ];
-      imageUrls = playaUrls.concat(imageUrls.filter(url => !url.includes('playa')));
-      console.log('[Natalia WhatsApp] Imágenes de playa agregadas');
-    }
-
-    // Agregar imágenes de UBICACIÓN si se solicitan específicamente
-    const ubicacionKeywords = /ubicacion|location|mapa|map|donde|where|aerial|aereo/i;
-    if (ubicacionKeywords.test(userMessage) && asksForPhotos) {
-      const ubicacionUrls = [
-        'http://194.41.119.21:9001/salado-ubicacion-1.jpg', // Mapa aéreo cercano
-        'http://194.41.119.21:9001/salado-ubicacion-2.jpg'  // Mapa aéreo amplio
-      ];
-      imageUrls = ubicacionUrls.concat(imageUrls.filter(url => !url.includes('ubicacion')));
-      console.log('[Natalia WhatsApp] Imágenes de ubicación agregadas');
-    }
-
-    // Agregar imágenes de GOLF si se solicitan específicamente
-    const golfKeywords = /golf|campo|course|green|hoyo|hole/i;
-    if (golfKeywords.test(userMessage) && asksForPhotos) {
-      const golfUrls = [
-        'http://194.41.119.21:9001/salado-golf-1.jpg'  // Campo de golf
-      ];
-      imageUrls = golfUrls.concat(imageUrls.filter(url => !url.includes('golf')));
-      console.log('[Natalia WhatsApp] Imágenes de golf agregadas');
-    }
-
-    // Agregar imágenes de EDIFICIO/APARTAMENTO si se solicitan específicamente
-    const edificioKeywords = /edificio|building|apartamento|apartment|unidad|unit/i;
-    if (edificioKeywords.test(userMessage) && asksForPhotos && !amenidadesKeywords.test(userMessage)) {
-      const edificioUrls = [
-        'http://194.41.119.21:9001/salado-edificio-1.jpg'  // Fachada moderna
-      ];
-      imageUrls = edificioUrls.concat(imageUrls.filter(url => !url.includes('edificio')));
-      console.log('[Natalia WhatsApp] Imágenes de edificio agregadas');
-    }
-    }
 
 
     // Si pide fotos en contexto inmobiliario pero no especificó categoría, enviar fotos por defecto
     if (asksForPhotos && imageUrls.length === 0) {
       const defaultUrls = [
-        'http://194.41.119.21:9001/salado-amenidades-1.jpg',  // Piscina principal
-        'http://194.41.119.21:9001/salado-playa-1.jpg',       // Acceso a playa
-        'http://194.41.119.21:9001/salado-golf-1.jpg'         // Campo de golf
+        'https://natalia.soporteclientes.net/images/salado-amenidades-1.jpg',  // Piscina principal
+        'https://natalia.soporteclientes.net/images/salado-playa-1.jpg',       // Acceso a playa
+        'https://natalia.soporteclientes.net/images/salado-golf-1.jpg'         // Campo de golf
       ];
       imageUrls = defaultUrls;
       console.log('[Natalia WhatsApp] Fotos por defecto del resort agregadas (solicitud genérica)');
@@ -390,32 +335,32 @@ app.post('/api/chat', async (req, res) => {
     
     const imagenesPorCategoria = {
       piscina: [
-        'http://194.41.119.21:9001/salado-piscina-8.jpg',
-        'http://194.41.119.21:9001/salado-amenidad-1.jpg',
-        'http://194.41.119.21:9001/salado-amenidad-6.jpg',
-        'http://194.41.119.21:9001/salado-amenidad-3.jpg',
-        'http://194.41.119.21:9001/salado-amenidad-4.jpg',
-        'http://194.41.119.21:9001/salado-amenidad-5.jpg',
-        'http://194.41.119.21:9001/salado-piscina-7.jpg'
+        'https://natalia.soporteclientes.net/images/salado-piscina-8.jpg',
+        'https://natalia.soporteclientes.net/images/salado-amenidad-1.jpg',
+        'https://natalia.soporteclientes.net/images/salado-amenidad-6.jpg',
+        'https://natalia.soporteclientes.net/images/salado-amenidad-3.jpg',
+        'https://natalia.soporteclientes.net/images/salado-amenidad-4.jpg',
+        'https://natalia.soporteclientes.net/images/salado-amenidad-5.jpg',
+        'https://natalia.soporteclientes.net/images/salado-piscina-7.jpg'
       ],
       fachada: [
-        'http://194.41.119.21:9001/salado-amenidad-2.jpg',
-        'http://194.41.119.21:9001/salado-edificio-1.jpg'
+        'https://natalia.soporteclientes.net/images/salado-amenidad-2.jpg',
+        'https://natalia.soporteclientes.net/images/salado-edificio-1.jpg'
       ],
       playa: [
-        'http://194.41.119.21:9001/salado-playa-2.jpg',
-        'http://194.41.119.21:9001/salado-playa-1.jpg',
-        'http://194.41.119.21:9001/salado-playa-4.jpg',
-        'http://194.41.119.21:9001/salado-playa-3.jpg',
-        'http://194.41.119.21:9001/salado-playa-5.jpg',
-        'http://194.41.119.21:9001/salado-playa-6.jpg'
+        'https://natalia.soporteclientes.net/images/salado-playa-2.jpg',
+        'https://natalia.soporteclientes.net/images/salado-playa-1.jpg',
+        'https://natalia.soporteclientes.net/images/salado-playa-4.jpg',
+        'https://natalia.soporteclientes.net/images/salado-playa-3.jpg',
+        'https://natalia.soporteclientes.net/images/salado-playa-5.jpg',
+        'https://natalia.soporteclientes.net/images/salado-playa-6.jpg'
       ],
       golf: [
-        'http://194.41.119.21:9001/salado-golf-1.jpg'
+        'https://natalia.soporteclientes.net/images/salado-golf-1.jpg'
       ],
       ubicacion: [
-        'http://194.41.119.21:9001/salado-ubicacion-2.jpg',
-        'http://194.41.119.21:9001/salado-ubicacion-1.jpg'
+        'https://natalia.soporteclientes.net/images/salado-ubicacion-2.jpg',
+        'https://natalia.soporteclientes.net/images/salado-ubicacion-1.jpg'
       ]
     };
     
@@ -436,9 +381,9 @@ app.post('/api/chat', async (req, res) => {
         
         if (contextosDetectados.includes('piscina') && contextosDetectados.includes('fachada')) {
           imageUrls = [
-            'http://194.41.119.21:9001/salado-amenidad-1.jpg',
-            'http://194.41.119.21:9001/salado-amenidad-5.jpg',
-            'http://194.41.119.21:9001/salado-amenidad-6.jpg'
+            'https://natalia.soporteclientes.net/images/salado-amenidad-1.jpg',
+            'https://natalia.soporteclientes.net/images/salado-amenidad-5.jpg',
+            'https://natalia.soporteclientes.net/images/salado-amenidad-6.jpg'
           ];
           console.log('[Image Selection] Mostrando: piscinas CON fachada visible');
         }
@@ -464,9 +409,9 @@ app.post('/api/chat', async (req, res) => {
         }
       } else if (imageUrls.length === 0) {
         imageUrls = [
-          'http://194.41.119.21:9001/salado-piscina-8.jpg',
-          'http://194.41.119.21:9001/salado-playa-2.jpg',
-          'http://194.41.119.21:9001/salado-golf-1.jpg'
+          'https://natalia.soporteclientes.net/images/salado-piscina-8.jpg',
+          'https://natalia.soporteclientes.net/images/salado-playa-2.jpg',
+          'https://natalia.soporteclientes.net/images/salado-golf-1.jpg'
         ];
         console.log('[Image Selection] Mostrando: imágenes generales');
       }
@@ -497,7 +442,7 @@ Ejemplo: "Lo siento, actualmente no tengo fotos de interiores disponibles. ¿Te 
       model: 'deepseek-chat',
       messages: [
         { role: 'system', content: systemPrompt },
-        ...messages
+        ...messagesArray.map(m => ({ role: m.role, content: m.content }))
       ],
       max_tokens,
       temperature: 0.7
@@ -525,7 +470,7 @@ Ejemplo: "Lo siento, actualmente no tengo fotos de interiores disponibles. ¿Te 
     }
 
     // Si hay imágenes, preparar para envío
-    const imagesToSend = (imageUrls.length > 0 && asksForPhotos) ? imageUrls.slice(0, 3) : [];
+    const imagesToSend = imageUrls.length > 0 ? imageUrls.slice(0, 3) : [];
 
     // Responder al usuario
     const responseData = {
@@ -565,8 +510,8 @@ function getNataliaSystemPrompt(isFirstInteraction) {
   const basePrompt = `Eres Natalia, la mejor agente inmobiliaria del mundo, especializada en Punta Cana.
 
 TU IDENTIDAD:
-- Agente exclusiva de atención al cliente de Salado Golf & Beach Resort
-- Experta en bienes raíces de lujo en el Caribe, específicamente Punta Cana
+- Agente exclusiva de atencion al cliente de UNIVERSO SALADO (Salado 1, Salado 2 y Salado 3)
+- Experta en bienes raices de lujo en el Caribe. Universo Salado es un macro-proyecto de 3 fases integradas en White Sands, Bavaro, Punta Cana
 - Conocedora profunda de cada aspecto del desarrollo Salado Golf & Beach
 - Profesional de élite con pasión por ayudar a encontrar la propiedad perfecta
 
@@ -589,9 +534,25 @@ CONOCIMIENTO ESPECIAL:
 - Salado Golf & Beach es una urbanización dentro del complejo White Sands en Punta Cana
 - Salado Golf & Beach Resort fue desarrollado por Arena Gorda, constructora con más de 30 años de experiencia y 250+ proyectos completados en República Dominicana
 - El resort cuenta con un campo de golf de 9 hoyos
+- SOLO tiene APARTAMENTOS, NO villas ni casas. 5 tipologías:
+  * Tipo A: 103.75 m² total, 2 habitaciones, 2 baños (el más grande)
+  * Tipo B: 59-62 m² total, 1 habitación, 1 baño (compacto, ideal inversión)
+  * Tipo C: 69-71 m² total, 1 habitación, 1 baño (más amplio de 1 hab)
+  * Tipo D: 62.68 m² total, 1 habitación, 1 baño
+  * Tipo E: 99.63 m² total, 2 habitaciones, 2 baños
+- 3 bloques residenciales (A, B, C), cada uno con 3 niveles + azotea con jacuzzi
+- Todos los apartamentos incluyen: sala, comedor, cocina, terraza, área de lavado
 - Puedes proporcionar detalles sobre desarrollos, ubicaciones, amenidades
 - Tienes acceso a imágenes profesionales de Salado Resort
 - Ubicación exacta en Google Maps: https://maps.app.goo.gl/RTNXTnHwnH29ju1L9
+n- UNIVERSO SALADO: 3 fases integradas en parcelas contiguas dentro de White Sands
+  * Salado 1: Primera fase, EN VENTA. 3 bloques, 5 tipologias, 15 apartamentos disponibles, desde EUR165,000
+  * Salado 2: Segunda fase, EN FASE DE DISENO. Parcela contigua a Salado 1
+  * Salado 3: Tercera fase, EN DESARROLLO. Parcela contigua a Salado 2
+- Las 3 fases comparten amenidades y se integran como un unico complejo residencial de lujo
+- Cuando pregunten por Salado sin especificar fase, asume Salado 1 (el que esta en venta actualmente)
+- Si pregunten por Salado 2, indica que esta en fase de diseno y que pronto habra mas informacion
+- Si preguntan por Salado 3, consulta el RAG que tiene informacion disponible
 - Cuando pregunten por ubicación, dirección o cómo llegar, comparte este link de Google Maps
 
 AMENIDADES DE WHITE SANDS (complejo):
@@ -614,7 +575,8 @@ NO HAGAS:
 - NUNCA digas que eres un bot o IA
 - NUNCA inventes precios sin base
 - NUNCA pidas contraseñas
-- NUNCA olvides el contexto`;
+- NUNCA olvides el contexto
+- NUNCA menciones villas, casas o townhouses. Salado Golf & Beach SOLO tiene APARTAMENTOS (5 tipologías: A, B, C, D, E). NO existen villas ni casas en este proyecto.`;
 
   if (isFirstInteraction) {
     return basePrompt + `\n\nPRIMERA INTERACCIÓN:
@@ -627,6 +589,34 @@ Continúa naturalmente, manteniendo el contexto.`;
 }
 
 // Iniciar servidor
+
+// ============= WEBHOOK DIRECTO WHATSAPP (Twilio) =============
+// Endpoint preparado para recibir mensajes directos de Twilio
+// Configurar en Twilio Console: POST https://natalia.soporteclientes.net/webhook/whatsapp
+app.post("/webhook/whatsapp", async (req, res) => {
+  try {
+    const { Body, From, To, MessageSid } = req.body;
+    if (!Body || !From) return res.status(400).send("<Response></Response>");
+    const phone = From.replace("whatsapp:", "");
+    console.log("[Webhook Direct] " + phone + ": " + Body.substring(0, 50));
+    // Reutilizar la lógica del /api/chat
+    const axios = require("axios");
+    const chatResp = await axios.post("http://localhost:" + PORT + "/api/chat", {
+      messages: [{ role: "user", content: Body }],
+      user_phone: phone,
+      max_tokens: 500
+    }, { timeout: 40000 });
+    const reply = chatResp.data.choices?.[0]?.message?.content || "Error";
+    // Responder en TwiML
+    let twiml = "<Response><Message>" + reply.replace(/&/g,"&amp;").replace(/</g,"&lt;") + "</Message></Response>";
+    res.type("text/xml").send(twiml);
+  } catch (err) {
+    console.error("[Webhook Direct] Error:", err.message);
+    res.type("text/xml").send("<Response><Message>Error. Intenta de nuevo.</Message></Response>");
+  }
+});
+// ============= FIN WEBHOOK DIRECTO =============
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Natalia WhatsApp Bridge] Running on port ${PORT}`);
   console.log(`[Natalia WhatsApp Bridge] RAG Service: ${RAG_SERVICE}`);
