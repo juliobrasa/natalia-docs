@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require('express');
 const axios = require('axios');
 const { exec } = require('child_process');
@@ -8,75 +9,74 @@ const execPromise = util.promisify(exec);
 const app = express();
 app.use(express.json());
 
+// Rate limiting
+const rateLimit = require("express-rate-limit");
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: { error: "Too many requests, please try again later" },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use("/api/chat", chatLimiter);
+
 // Configuración
-const MOLTBOT_GATEWAY = 'http://localhost:3100';
-const MOLTBOT_TOKEN = 'natalia-coordinator-token-2026';
+const MOLTBOT_GATEWAY = process.env.MOLTBOT_GATEWAY || 'http://localhost:3100';
+const MOLTBOT_TOKEN = process.env.MOLTBOT_TOKEN || 'natalia-coordinator-token-2026';
 const PORT = process.env.PORT || 18790;
-const RAG_SERVICE = 'http://localhost:9000';
-const DEEPSEEK_API = 'https://api.deepseek.com/chat/completions';
-const DEEPSEEK_KEY = 'sk-d47fe7b31106439baaf4fa35fe18b4f2';
-const SESSIONS_FILE = '/var/lib/natalia-whatsapp/sessions.json';
-// ==================== SISTEMA DE SESIONES ====================
-const conversationSessions = new Map();
-const SESSION_TIMEOUT = 365 * 24 * 60 * 60 * 1000; // 1 año
+const RAG_SERVICE = process.env.RAG_SERVICE || 'http://localhost:9000';
+const DEEPSEEK_API = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || '';
+const SESSIONS_FILE = process.env.SESSIONS_FILE || '/var/lib/natalia-whatsapp/sessions.json';
+// ==================== SISTEMA DE SESIONES (SQLite) ====================
+const Database = require('better-sqlite3');
+const SESSIONS_DB = SESSIONS_FILE.replace('.json', '.db');
+const db = new Database(SESSIONS_DB);
 
+// Crear tabla si no existe
+db.exec("CREATE TABLE IF NOT EXISTS sessions (phone TEXT PRIMARY KEY, messages TEXT NOT NULL DEFAULT '[]', last_activity INTEGER NOT NULL, first_interaction INTEGER NOT NULL)");
 
-// ==================== PERSISTENCIA DE SESIONES ====================
-
-// Guardar sesiones a disco
-function saveSessions() {
-  try {
-    const sessionsArray = Array.from(conversationSessions.entries());
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessionsArray, null, 2));
-    console.log(`[Session] 💾 Guardadas ${sessionsArray.length} sesiones a disco`);
-  } catch (error) {
-    console.error('[Session] ❌ Error al guardar sesiones:', error.message);
-  }
-}
-
-// Cargar sesiones desde disco
-function loadSessions() {
+// Migrar datos desde JSON si existe
+(function migrateFromJson() {
   try {
     if (fs.existsSync(SESSIONS_FILE)) {
-      const data = fs.readFileSync(SESSIONS_FILE, 'utf8');
-      const sessionsArray = JSON.parse(data);
-      
-      for (const [phone, session] of sessionsArray) {
-        conversationSessions.set(phone, session);
-      }
-      
-      console.log(`[Session] 📂 Cargadas ${sessionsArray.length} sesiones desde disco`);
-      
-      // Mostrar resumen
-      for (const [phone, session] of conversationSessions.entries()) {
-        console.log(`[Session]    📱 ${phone}: ${session.messages.length} mensajes`);
-      }
-    } else {
-      console.log('[Session] ℹ️  No hay sesiones previas guardadas');
+      const data = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+      const insert = db.prepare('INSERT OR IGNORE INTO sessions (phone, messages, last_activity, first_interaction) VALUES (?, ?, ?, ?)');
+      const tx = db.transaction((sessions) => {
+        for (const [phone, session] of sessions) {
+          insert.run(phone, JSON.stringify(session.messages || []), session.lastActivity || Date.now(), session.firstInteraction || Date.now());
+        }
+      });
+      tx(data);
+      const count = db.prepare('SELECT COUNT(*) as c FROM sessions').get().c;
+      console.log('[Session SQLite] Migradas ' + count + ' sesiones desde JSON');
+      fs.renameSync(SESSIONS_FILE, SESSIONS_FILE + '.migrated');
     }
-  } catch (error) {
-    console.error('[Session] ❌ Error al cargar sesiones:', error.message);
+  } catch (e) {
+    console.log('[Session SQLite] No JSON to migrate:', e.message);
   }
-}
+})();
 
-// ==================================================================
+// Prepared statements
+const stmtGet = db.prepare('SELECT * FROM sessions WHERE phone = ?');
+const stmtUpsert = db.prepare('INSERT INTO sessions (phone, messages, last_activity, first_interaction) VALUES (?, ?, ?, ?) ON CONFLICT(phone) DO UPDATE SET messages = excluded.messages, last_activity = excluded.last_activity');
+const stmtCleanup = db.prepare('DELETE FROM sessions WHERE last_activity < ?');
 
 function getSession(phoneNumber) {
-  if (!phoneNumber) {
-    return { messages: [], lastActivity: Date.now() };
+  if (!phoneNumber) return { messages: [], lastActivity: Date.now() };
+
+  const row = stmtGet.get(phoneNumber);
+  if (row) {
+    return {
+      messages: JSON.parse(row.messages),
+      lastActivity: row.last_activity,
+      firstInteraction: row.first_interaction
+    };
   }
 
-  if (!conversationSessions.has(phoneNumber)) {
-    conversationSessions.set(phoneNumber, {
-      messages: [],
-      lastActivity: Date.now(),
-      firstInteraction: Date.now()
-    });
-    console.log(`[Session] 🆕 Nueva sesión: ${phoneNumber}`);
-  }
-
-  const session = conversationSessions.get(phoneNumber);
-  session.lastActivity = Date.now();
+  const session = { messages: [], lastActivity: Date.now(), firstInteraction: Date.now() };
+  stmtUpsert.run(phoneNumber, '[]', session.lastActivity, session.firstInteraction);
+  console.log('[Session] Nueva sesion: ' + phoneNumber);
   return session;
 }
 
@@ -90,54 +90,63 @@ function addMessageToSession(phoneNumber, role, content) {
     session.messages = session.messages.slice(-250);
   }
 
-  conversationSessions.set(phoneNumber, session);
-  console.log(`[Session] 💾 ${phoneNumber}: ${session.messages.length} mensajes`);
+  stmtUpsert.run(phoneNumber, JSON.stringify(session.messages), Date.now(), session.firstInteraction);
+  console.log('[Session] ' + phoneNumber + ': ' + session.messages.length + ' mensajes');
   return session.messages;
 }
 
+// Cleanup expired sessions (1 year)
 setInterval(() => {
-  const now = Date.now();
-  let cleaned = 0;
-  for (const [phone, session] of conversationSessions.entries()) {
-    if (now - session.lastActivity > SESSION_TIMEOUT) {
-      conversationSessions.delete(phone);
-      cleaned++;
-    }
-  }
-  if (cleaned > 0) console.log(`[Session] 🧹 Limpiadas ${cleaned} sesiones`);
+  const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
+  const result = stmtCleanup.run(cutoff);
+  if (result.changes > 0) console.log('[Session] Limpiadas ' + result.changes + ' sesiones');
 }, 60 * 60 * 1000);
 
-// ============================================================
-console.log('[Session Storage] ✅ Sistema inicializado (timeout 1 año)');
+const sessionCount = db.prepare('SELECT COUNT(*) as c FROM sessions').get().c;
+console.log('[Session SQLite] Inicializado con ' + sessionCount + ' sesiones');
+console.log('[Session SQLite] DB: ' + SESSIONS_DB);
 
-// Cargar sesiones al iniciar
-loadSessions();
+// Graceful shutdown
+process.on('SIGTERM', () => { db.close(); process.exit(0); });
+process.on('SIGINT', () => { db.close(); process.exit(0); });
 
-// Guardar sesiones automáticamente cada 5 minutos
-setInterval(() => {
-  saveSessions();
-}, 5 * 60 * 1000);
-
-// Guardar sesiones al cerrar el proceso
-process.on('SIGTERM', () => {
-  console.log('[Session] 💾 Guardando sesiones antes de cerrar...');
-  saveSessions();
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('[Session] 💾 Guardando sesiones antes de cerrar...');
-  saveSessions();
-  process.exit(0);
-});
-
-console.log('[Session Storage] 💾 Persistencia a disco: ACTIVADA');
-console.log('[Session Storage] 📂 Archivo: ' + SESSIONS_FILE);
-console.log('[Session Storage] ⏰ Auto-guardado: cada 5 minutos');
 
 
 // Almacenar el número de teléfono del usuario actual
 let currentUserPhone = null;
+
+// Endpoint de metricas
+app.get('/status', (req, res) => {
+  const os = require('os');
+  const uptime = process.uptime();
+  const memUsage = process.memoryUsage();
+  const totalSessions = db.prepare('SELECT COUNT(*) as count FROM sessions').get();
+  const activeSessions = db.prepare("SELECT COUNT(*) as count FROM sessions WHERE last_activity > (strftime('%s','now') - 3600)").get();
+  res.json({
+    status: 'running',
+    uptime_seconds: Math.floor(uptime),
+    uptime_human: Math.floor(uptime/3600) + 'h ' + Math.floor((uptime%3600)/60) + 'm',
+    memory: {
+      rss_mb: Math.round(memUsage.rss / 1048576),
+      heap_mb: Math.round(memUsage.heapUsed / 1048576)
+    },
+    system: {
+      load: os.loadavg(),
+      free_mem_mb: Math.round(os.freemem() / 1048576),
+      total_mem_mb: Math.round(os.totalmem() / 1048576)
+    },
+    sessions: {
+      total: totalSessions.count,
+      active_1h: activeSessions.count
+    },
+    services: {
+      bridge: 'natalia-whatsapp-bridge:18790',
+      moltbot: 'moltbot-gateway:3100',
+      webhook: 'whatsapp-webhook:3002',
+      model: 'deepseek-chat'
+    }
+  });
+});
 
 // Endpoint de salud
 app.get('/health', (req, res) => {
@@ -206,7 +215,7 @@ app.post('/api/chat', async (req, res) => {
           // Sincronizar sesión
           const session = getSession(phoneNumber);
           session.messages = messages;
-          conversationSessions.set(phoneNumber, session);
+          stmtUpsert.run(phoneNumber, JSON.stringify(session.messages), Date.now(), session.firstInteraction || Date.now());
           console.log('[Session] 🔄 Sincronizado: ' + messages.length + ' mensajes');
         }
       }
@@ -298,72 +307,8 @@ app.post('/api/chat', async (req, res) => {
       } catch (ragError) {
         console.warn('[Natalia WhatsApp] RAG query failed:', ragError.message);
       }
-
-    // Agregar imágenes de amenidades si se solicitan específicamente
-    const amenidadesKeywords = /amenidad|piscina|pool|fachada|facade|instalaciones|facilities/i;
-    if (amenidadesKeywords.test(userMessage) && asksForPhotos) {
-      const amenidadesUrls = [
-        'http://194.41.119.21:9001/salado-amenidad-1.jpg', // Piscina III
-        'http://194.41.119.21:9001/salado-amenidad-3.jpg', // Piscina Bávaro y Salado
-        'http://194.41.119.21:9001/salado-amenidad-4.jpg', // Piscina II
-        'http://194.41.119.21:9001/salado-piscina-7.jpg',  // Piscina con camastros
-        'http://194.41.119.21:9001/salado-piscina-8.jpg',  // Piscina moderna render
-        'http://194.41.119.21:9001/salado-amenidad-5.jpg', // Piscina y fachada
-        'http://194.41.119.21:9001/salado-amenidad-6.jpg', // Piscina principal
-        'http://194.41.119.21:9001/salado-amenidad-2.jpg'  // Fachada calle Punta Cana
-      ];
-
-      // Priorizar amenidades sobre exteriores
-      imageUrls = amenidadesUrls.concat(imageUrls.filter(url => !url.includes('amenidad') && !url.includes('piscina')));
-      console.log('[Natalia WhatsApp] Imágenes de amenidades agregadas');
     }
 
-    // Agregar imágenes de PLAYA si se solicitan específicamente
-    const playaKeywords = /playa|beach|mar|sea|arena|sand|costa|shore/i;
-    if (playaKeywords.test(userMessage) && asksForPhotos) {
-      const playaUrls = [
-        'http://194.41.119.21:9001/salado-playa-1.jpg', // Pier con kayak
-        'http://194.41.119.21:9001/salado-playa-2.jpg', // Vista aérea playa resort
-        'http://194.41.119.21:9001/salado-playa-4.jpg', // Palmera con camastros
-        'http://194.41.119.21:9001/salado-playa-5.jpg', // Playa con gente
-        'http://194.41.119.21:9001/salado-playa-6.jpg', // Playa palmeras
-        'http://194.41.119.21:9001/salado-playa-3.jpg'  // Persona saltando
-      ];
-      imageUrls = playaUrls.concat(imageUrls.filter(url => !url.includes('playa')));
-      console.log('[Natalia WhatsApp] Imágenes de playa agregadas');
-    }
-
-    // Agregar imágenes de UBICACIÓN si se solicitan específicamente
-    const ubicacionKeywords = /ubicacion|location|mapa|map|donde|where|aerial|aereo/i;
-    if (ubicacionKeywords.test(userMessage) && asksForPhotos) {
-      const ubicacionUrls = [
-        'http://194.41.119.21:9001/salado-ubicacion-1.jpg', // Mapa aéreo cercano
-        'http://194.41.119.21:9001/salado-ubicacion-2.jpg'  // Mapa aéreo amplio
-      ];
-      imageUrls = ubicacionUrls.concat(imageUrls.filter(url => !url.includes('ubicacion')));
-      console.log('[Natalia WhatsApp] Imágenes de ubicación agregadas');
-    }
-
-    // Agregar imágenes de GOLF si se solicitan específicamente
-    const golfKeywords = /golf|campo|course|green|hoyo|hole/i;
-    if (golfKeywords.test(userMessage) && asksForPhotos) {
-      const golfUrls = [
-        'http://194.41.119.21:9001/salado-golf-1.jpg'  // Campo de golf
-      ];
-      imageUrls = golfUrls.concat(imageUrls.filter(url => !url.includes('golf')));
-      console.log('[Natalia WhatsApp] Imágenes de golf agregadas');
-    }
-
-    // Agregar imágenes de EDIFICIO/APARTAMENTO si se solicitan específicamente
-    const edificioKeywords = /edificio|building|apartamento|apartment|unidad|unit/i;
-    if (edificioKeywords.test(userMessage) && asksForPhotos && !amenidadesKeywords.test(userMessage)) {
-      const edificioUrls = [
-        'http://194.41.119.21:9001/salado-edificio-1.jpg'  // Fachada moderna
-      ];
-      imageUrls = edificioUrls.concat(imageUrls.filter(url => !url.includes('edificio')));
-      console.log('[Natalia WhatsApp] Imágenes de edificio agregadas');
-    }
-    }
 
 
     // Si pide fotos en contexto inmobiliario pero no especificó categoría, enviar fotos por defecto
@@ -497,7 +442,7 @@ Ejemplo: "Lo siento, actualmente no tengo fotos de interiores disponibles. ¿Te 
       model: 'deepseek-chat',
       messages: [
         { role: 'system', content: systemPrompt },
-        ...messages
+        ...messagesArray.map(m => ({ role: m.role, content: m.content }))
       ],
       max_tokens,
       temperature: 0.7
@@ -627,6 +572,34 @@ Continúa naturalmente, manteniendo el contexto.`;
 }
 
 // Iniciar servidor
+
+// ============= WEBHOOK DIRECTO WHATSAPP (Twilio) =============
+// Endpoint preparado para recibir mensajes directos de Twilio
+// Configurar en Twilio Console: POST https://natalia.soporteclientes.net/webhook/whatsapp
+app.post("/webhook/whatsapp", async (req, res) => {
+  try {
+    const { Body, From, To, MessageSid } = req.body;
+    if (!Body || !From) return res.status(400).send("<Response></Response>");
+    const phone = From.replace("whatsapp:", "");
+    console.log("[Webhook Direct] " + phone + ": " + Body.substring(0, 50));
+    // Reutilizar la lógica del /api/chat
+    const axios = require("axios");
+    const chatResp = await axios.post("http://localhost:" + PORT + "/api/chat", {
+      messages: [{ role: "user", content: Body }],
+      user_phone: phone,
+      max_tokens: 500
+    }, { timeout: 40000 });
+    const reply = chatResp.data.choices?.[0]?.message?.content || "Error";
+    // Responder en TwiML
+    let twiml = "<Response><Message>" + reply.replace(/&/g,"&amp;").replace(/</g,"&lt;") + "</Message></Response>";
+    res.type("text/xml").send(twiml);
+  } catch (err) {
+    console.error("[Webhook Direct] Error:", err.message);
+    res.type("text/xml").send("<Response><Message>Error. Intenta de nuevo.</Message></Response>");
+  }
+});
+// ============= FIN WEBHOOK DIRECTO =============
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Natalia WhatsApp Bridge] Running on port ${PORT}`);
   console.log(`[Natalia WhatsApp Bridge] RAG Service: ${RAG_SERVICE}`);
