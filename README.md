@@ -1,154 +1,59 @@
-# Natalia - Universo Salado
+<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-**Version:** 2.0.0  
-**Fecha:** 2026-02-08  
-**Estado:** Produccion
+<p align="center">
+<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+</p>
 
-## Descripcion
+## About Laravel
 
-Natalia es la coordinadora inteligente de **Universo Salado** - un complejo de tres urbanizaciones exclusivas en White Sands, Bavaro, Punta Cana:
+Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
-- **Salado 1** - Primera fase, en venta. 3 bloques (A, B, C), 5 tipologias, desde EUR165,000
-- **Salado 2** - Segunda fase, en diseno. Parcela contigua a Salado 1
-- **Salado 3** - Tercera fase, en desarrollo. 22 renders preliminares disponibles
+- [Simple, fast routing engine](https://laravel.com/docs/routing).
+- [Powerful dependency injection container](https://laravel.com/docs/container).
+- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
+- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
+- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
+- [Robust background job processing](https://laravel.com/docs/queues).
+- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
-Natalia gestiona WhatsApp, Telegram, web chat, y un panel de contenido para redes sociales.
+Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
-## Componentes
+## Learning Laravel
 
-### 1. WhatsApp Bridge (`server.js`)
-- **Puerto:** 18790
-- **Numero:** +34 685 80 59 24
-- **Motor IA:** DeepSeek API
-- **RAG:** Qdrant Vector DB (localhost:9000)
-- Rate limiting, sesiones persistentes (SQLite), envio de imagenes automatico
+Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
 
-### 2. Panel de Contenido (`salado-panel/`)
-- **URL:** https://panel.saladoresort.com/admin
-- **Stack:** Laravel 11 + Filament PHP 3 + MariaDB
-- **Funcionalidades:**
-  - CRUD de Posts, Campanas, Proyectos
-  - Dashboard con widgets de estadisticas
-  - Generador de contenido con IA (DeepSeek)
-  - Soporte multi-proyecto (Salado 1, 2, 3)
-  - 30 posts pre-generados para calendario de contenido
-  - Landing page en panel.saladoresort.com
+If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
 
-### 3. Clips de Video (`clips-voz/`)
-- **URL:** https://panel.saladoresort.com/clips.html
-- 5 clips con locucion (es-DO, Ramona) + musica tropical
-- Formatos: Reels (9:16), Stories (9:16), Posts (1:1), Facebook
+## Laravel Sponsors
 
-### 4. Telegram Bot
-- **Bot:** @Natalia_jefa_bot
-- **Servicio:** telegram-natalia.service
+We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
 
-### 5. MoltBot Gateway
-- **Puerto:** 3100
-- **Web Chat:** https://natalia.soporteclientes.net/chat
+### Premium Partners
 
-## Servicios en natalia (194.41.119.117)
+- **[Vehikl](https://vehikl.com)**
+- **[Tighten Co.](https://tighten.co)**
+- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
+- **[64 Robots](https://64robots.com)**
+- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
+- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
+- **[Redberry](https://redberry.international/laravel-development)**
+- **[Active Logic](https://activelogic.com)**
 
-| Servicio | Puerto | systemd |
-|----------|--------|---------|
-| Natalia WhatsApp Bridge | 18790 | natalia-whatsapp.service |
-| MoltBot Gateway | 3100 | moltbot.service |
-| Telegram Bot | - | telegram-natalia.service |
-| WhatsApp Webhook | - | whatsapp-webhook.service |
-| RAG Service (Qdrant) | 9000 | rag-service |
-| PHP-FPM 8.2 | sock | php8.2-fpm.service |
-| MariaDB | 3306 | mariadb.service |
-| Nginx | 80/443 | nginx.service |
+## Contributing
 
-## Media disponible
+Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
 
-### Salado 1
-- 3 renders (fachada dia/noche, vista frontal Bavaro)
-- 30 posts con imagenes para calendario de contenido
-- Video inicio de obras (5.3MB)
-- Video promocional (71MB, 1080p)
+## Code of Conduct
 
-### Salado 3
-- 22 renders preliminares (Escenas 3D, 673MB total)
+In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
 
-### Universo Salado (compartido)
-- 3 videos playa White Sands (5.4MB + 9.8MB + 458MB 4K)
-- 5 clips con locucion para redes sociales
-- Plano urbanistico Salado 1 + Salado 2
-- Vista aerea Google Earth
+## Security Vulnerabilities
 
-### URLs de media
-- Imagenes: https://natalia.soporteclientes.net/images/
-- Salado 3: https://natalia.soporteclientes.net/images/salado3/
-- Clips sin audio: https://natalia.soporteclientes.net/images/clips/
-- Clips con musica: https://natalia.soporteclientes.net/images/clips-music/
-- Clips con voz: https://natalia.soporteclientes.net/images/clips-voz/
+If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
-## Estructura del repositorio
+## License
 
-```
-natalia-docs/
-├── server.js                    # WhatsApp Bridge (produccion)
-├── package.json                 # Dependencias Node.js
-├── sessions-admin.sh            # Herramienta admin de sesiones
-├── README.md                    # Este archivo
-├── salado-panel/                # Panel Laravel (archivos clave)
-│   ├── app/
-│   │   ├── Filament/
-│   │   │   ├── Resources/       # PostResource, CampaignResource, ProjectResource
-│   │   │   ├── Pages/           # AiGenerator
-│   │   │   └── Widgets/         # Stats, Chart, LatestPosts
-│   │   └── Models/              # Post, PostImage, Campaign, Project, Setting
-│   ├── database/
-│   │   ├── migrations/          # Tablas: posts, post_images, campaigns, settings, projects
-│   │   └── seeders/             # ContentCalendarSeeder, ProjectSeeder
-│   ├── resources/views/
-│   │   ├── welcome.blade.php    # Landing page
-│   │   └── filament/pages/      # Vista AI Generator
-│   ├── clips.html               # Preview de video clips
-│   └── nginx-panel.saladoresort.com.conf
-└── docs/                        # Documentacion historica
-    ├── AMENIDADES.md
-    ├── CATALOGO-IMAGENES-SALADO.md
-    ├── IMAGENES-COMERCIALES.md
-    └── SIMULACION-VACACIONAL.md
-```
-
-## Reiniciar servicios
-
-```bash
-# WhatsApp Bridge
-systemctl restart natalia-whatsapp
-
-# Telegram
-systemctl restart telegram-natalia
-
-# MoltBot
-systemctl restart moltbot
-
-# Panel Laravel
-cd /var/www/salado-panel && php artisan optimize:clear && php artisan optimize
-
-# Nginx
-systemctl reload nginx
-```
-
-## Test rapido
-
-```bash
-# Test WhatsApp Bridge
-curl -X POST http://localhost:18790/api/chat \
-  -H "Content-Type: application/json" \
-  -d {messages:[{role:user,content:Que es Universo Salado?}]}
-
-# Test RAG
-curl -X POST http://localhost:9000/query \
-  -H "Content-Type: application/json" \
-  -d {text:apartamentos salado,top_k:3}
-
-# Test Panel
-curl -s https://panel.saladoresort.com/admin | head -5
-```
-
----
-**Ultima actualizacion:** 2026-02-08
+The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
