@@ -157,7 +157,7 @@ app.get('/health', (req, res) => {
 function detectRealEstateContext(messages) {
   // Keywords que indican que estamos en contexto inmobiliario
   const realEstateKeywords = ['salado', 'resort', 'apartamento', 'punta cana', 'golf', 
-    'playa', 'inmobiliaria', 'propiedad', 'desarrollo', 'inversión'];
+    'playa', 'inmobiliaria', 'propiedad', 'desarrollo', 'inversión', 'plano', 'planos', 'bloque', 'tipología', 'tipologia', 'tipo a', 'tipo b', 'tipo c', 'tipo d', 'tipo e', 'masterplan', 'arquitect'];
   
   // Analizar los últimos 4 mensajes (2 intercambios)
   const recentMessages = messages.slice(-4);
@@ -240,7 +240,7 @@ app.post('/api/chat', async (req, res) => {
     
     // Keywords principales de inmobiliaria
     const primaryKeywords = ['salado', 'resort', 'apartamento', 'punta cana', 'golf', 'playa', 
-      'inmobiliaria', 'propiedad', 'desarrollo', 'inversión'];
+      'inmobiliaria', 'propiedad', 'desarrollo', 'inversión', 'plano', 'planos', 'bloque', 'tipología', 'tipologia', 'tipo a', 'tipo b', 'tipo c', 'tipo d', 'tipo e', 'masterplan', 'arquitect'];
     
     // Keywords de seguimiento (indican preguntas de follow-up)
     const followUpKeywords = ['barato', 'económico', 'precio', 'costo', 'cuál', 'cuánto', 
@@ -248,7 +248,7 @@ app.post('/api/chat', async (req, res) => {
       'metros', 'm²', 'tamaño', 'superficie', 'pago', 'financiamiento', 'entrega', 'amenidades', 'servicios', 'facilidades', 'ubicación', 'ubicacion'];
     
     // Keywords de imágenes
-    const imageKeywords = ['foto', 'imagen', 'picture', 'exterior', 'interior', 'muestra', 'ver', 'envia'];
+    const imageKeywords = ['foto', 'imagen', 'picture', 'exterior', 'interior', 'muestra', 'ver', 'envia', 'envíame', 'muéstrame', 'enseña', 'fotos', 'imágenes', 'galeria', 'visual', 'plano', 'planos', 'distribución', 'distribucion', 'layout'];
     
     // Combinar todas las keywords
     const allKeywords = [...primaryKeywords, ...imageKeywords];
@@ -287,7 +287,7 @@ app.post('/api/chat', async (req, res) => {
         const ragQueryResponse = await axios.post(`${RAG_SERVICE}/query`, {
           query: ragQuery,
           collection: 'marketing-inmobiliaria',
-          top_k: 5
+          top_k: 15
         }, {
           timeout: 45000
         });
@@ -314,9 +314,9 @@ app.post('/api/chat', async (req, res) => {
     // Si pide fotos en contexto inmobiliario pero no especificó categoría, enviar fotos por defecto
     if (asksForPhotos && imageUrls.length === 0) {
       const defaultUrls = [
-        'http://194.41.119.21:9001/salado-amenidades-1.jpg',  // Piscina principal
-        'http://194.41.119.21:9001/salado-playa-1.jpg',       // Acceso a playa
-        'http://194.41.119.21:9001/salado-golf-1.jpg'         // Campo de golf
+        'https://natalia.soporteclientes.net/images/salado-amenidades-1.jpg',  // Piscina principal
+        'https://natalia.soporteclientes.net/images/salado-playa-1.jpg',       // Acceso a playa
+        'https://natalia.soporteclientes.net/images/salado-golf-1.jpg'         // Campo de golf
       ];
       imageUrls = defaultUrls;
       console.log('[Natalia WhatsApp] Fotos por defecto del resort agregadas (solicitud genérica)');
@@ -335,32 +335,32 @@ app.post('/api/chat', async (req, res) => {
     
     const imagenesPorCategoria = {
       piscina: [
-        'http://194.41.119.21:9001/salado-piscina-8.jpg',
-        'http://194.41.119.21:9001/salado-amenidad-1.jpg',
-        'http://194.41.119.21:9001/salado-amenidad-6.jpg',
-        'http://194.41.119.21:9001/salado-amenidad-3.jpg',
-        'http://194.41.119.21:9001/salado-amenidad-4.jpg',
-        'http://194.41.119.21:9001/salado-amenidad-5.jpg',
-        'http://194.41.119.21:9001/salado-piscina-7.jpg'
+        'https://natalia.soporteclientes.net/images/salado-piscina-8.jpg',
+        'https://natalia.soporteclientes.net/images/salado-amenidad-1.jpg',
+        'https://natalia.soporteclientes.net/images/salado-amenidad-6.jpg',
+        'https://natalia.soporteclientes.net/images/salado-amenidad-3.jpg',
+        'https://natalia.soporteclientes.net/images/salado-amenidad-4.jpg',
+        'https://natalia.soporteclientes.net/images/salado-amenidad-5.jpg',
+        'https://natalia.soporteclientes.net/images/salado-piscina-7.jpg'
       ],
       fachada: [
-        'http://194.41.119.21:9001/salado-amenidad-2.jpg',
-        'http://194.41.119.21:9001/salado-edificio-1.jpg'
+        'https://natalia.soporteclientes.net/images/salado-amenidad-2.jpg',
+        'https://natalia.soporteclientes.net/images/salado-edificio-1.jpg'
       ],
       playa: [
-        'http://194.41.119.21:9001/salado-playa-2.jpg',
-        'http://194.41.119.21:9001/salado-playa-1.jpg',
-        'http://194.41.119.21:9001/salado-playa-4.jpg',
-        'http://194.41.119.21:9001/salado-playa-3.jpg',
-        'http://194.41.119.21:9001/salado-playa-5.jpg',
-        'http://194.41.119.21:9001/salado-playa-6.jpg'
+        'https://natalia.soporteclientes.net/images/salado-playa-2.jpg',
+        'https://natalia.soporteclientes.net/images/salado-playa-1.jpg',
+        'https://natalia.soporteclientes.net/images/salado-playa-4.jpg',
+        'https://natalia.soporteclientes.net/images/salado-playa-3.jpg',
+        'https://natalia.soporteclientes.net/images/salado-playa-5.jpg',
+        'https://natalia.soporteclientes.net/images/salado-playa-6.jpg'
       ],
       golf: [
-        'http://194.41.119.21:9001/salado-golf-1.jpg'
+        'https://natalia.soporteclientes.net/images/salado-golf-1.jpg'
       ],
       ubicacion: [
-        'http://194.41.119.21:9001/salado-ubicacion-2.jpg',
-        'http://194.41.119.21:9001/salado-ubicacion-1.jpg'
+        'https://natalia.soporteclientes.net/images/salado-ubicacion-2.jpg',
+        'https://natalia.soporteclientes.net/images/salado-ubicacion-1.jpg'
       ]
     };
     
@@ -381,9 +381,9 @@ app.post('/api/chat', async (req, res) => {
         
         if (contextosDetectados.includes('piscina') && contextosDetectados.includes('fachada')) {
           imageUrls = [
-            'http://194.41.119.21:9001/salado-amenidad-1.jpg',
-            'http://194.41.119.21:9001/salado-amenidad-5.jpg',
-            'http://194.41.119.21:9001/salado-amenidad-6.jpg'
+            'https://natalia.soporteclientes.net/images/salado-amenidad-1.jpg',
+            'https://natalia.soporteclientes.net/images/salado-amenidad-5.jpg',
+            'https://natalia.soporteclientes.net/images/salado-amenidad-6.jpg'
           ];
           console.log('[Image Selection] Mostrando: piscinas CON fachada visible');
         }
@@ -409,9 +409,9 @@ app.post('/api/chat', async (req, res) => {
         }
       } else if (imageUrls.length === 0) {
         imageUrls = [
-          'http://194.41.119.21:9001/salado-piscina-8.jpg',
-          'http://194.41.119.21:9001/salado-playa-2.jpg',
-          'http://194.41.119.21:9001/salado-golf-1.jpg'
+          'https://natalia.soporteclientes.net/images/salado-piscina-8.jpg',
+          'https://natalia.soporteclientes.net/images/salado-playa-2.jpg',
+          'https://natalia.soporteclientes.net/images/salado-golf-1.jpg'
         ];
         console.log('[Image Selection] Mostrando: imágenes generales');
       }
@@ -470,7 +470,7 @@ Ejemplo: "Lo siento, actualmente no tengo fotos de interiores disponibles. ¿Te 
     }
 
     // Si hay imágenes, preparar para envío
-    const imagesToSend = (imageUrls.length > 0 && asksForPhotos) ? imageUrls.slice(0, 3) : [];
+    const imagesToSend = imageUrls.length > 0 ? imageUrls.slice(0, 3) : [];
 
     // Responder al usuario
     const responseData = {
@@ -510,8 +510,8 @@ function getNataliaSystemPrompt(isFirstInteraction) {
   const basePrompt = `Eres Natalia, la mejor agente inmobiliaria del mundo, especializada en Punta Cana.
 
 TU IDENTIDAD:
-- Agente exclusiva de atención al cliente de Salado Golf & Beach Resort
-- Experta en bienes raíces de lujo en el Caribe, específicamente Punta Cana
+- Agente exclusiva de atencion al cliente de UNIVERSO SALADO (Salado 1, Salado 2 y Salado 3)
+- Experta en bienes raices de lujo en el Caribe. Universo Salado es un macro-proyecto de 3 fases integradas en White Sands, Bavaro, Punta Cana
 - Conocedora profunda de cada aspecto del desarrollo Salado Golf & Beach
 - Profesional de élite con pasión por ayudar a encontrar la propiedad perfecta
 
@@ -534,9 +534,25 @@ CONOCIMIENTO ESPECIAL:
 - Salado Golf & Beach es una urbanización dentro del complejo White Sands en Punta Cana
 - Salado Golf & Beach Resort fue desarrollado por Arena Gorda, constructora con más de 30 años de experiencia y 250+ proyectos completados en República Dominicana
 - El resort cuenta con un campo de golf de 9 hoyos
+- SOLO tiene APARTAMENTOS, NO villas ni casas. 5 tipologías:
+  * Tipo A: 103.75 m² total, 2 habitaciones, 2 baños (el más grande)
+  * Tipo B: 59-62 m² total, 1 habitación, 1 baño (compacto, ideal inversión)
+  * Tipo C: 69-71 m² total, 1 habitación, 1 baño (más amplio de 1 hab)
+  * Tipo D: 62.68 m² total, 1 habitación, 1 baño
+  * Tipo E: 99.63 m² total, 2 habitaciones, 2 baños
+- 3 bloques residenciales (A, B, C), cada uno con 3 niveles + azotea con jacuzzi
+- Todos los apartamentos incluyen: sala, comedor, cocina, terraza, área de lavado
 - Puedes proporcionar detalles sobre desarrollos, ubicaciones, amenidades
 - Tienes acceso a imágenes profesionales de Salado Resort
 - Ubicación exacta en Google Maps: https://maps.app.goo.gl/RTNXTnHwnH29ju1L9
+n- UNIVERSO SALADO: 3 fases integradas en parcelas contiguas dentro de White Sands
+  * Salado 1: Primera fase, EN VENTA. 3 bloques, 5 tipologias, 15 apartamentos disponibles, desde EUR165,000
+  * Salado 2: Segunda fase, EN FASE DE DISENO. Parcela contigua a Salado 1
+  * Salado 3: Tercera fase, EN DESARROLLO. Parcela contigua a Salado 2
+- Las 3 fases comparten amenidades y se integran como un unico complejo residencial de lujo
+- Cuando pregunten por Salado sin especificar fase, asume Salado 1 (el que esta en venta actualmente)
+- Si pregunten por Salado 2, indica que esta en fase de diseno y que pronto habra mas informacion
+- Si preguntan por Salado 3, consulta el RAG que tiene informacion disponible
 - Cuando pregunten por ubicación, dirección o cómo llegar, comparte este link de Google Maps
 
 AMENIDADES DE WHITE SANDS (complejo):
@@ -559,7 +575,8 @@ NO HAGAS:
 - NUNCA digas que eres un bot o IA
 - NUNCA inventes precios sin base
 - NUNCA pidas contraseñas
-- NUNCA olvides el contexto`;
+- NUNCA olvides el contexto
+- NUNCA menciones villas, casas o townhouses. Salado Golf & Beach SOLO tiene APARTAMENTOS (5 tipologías: A, B, C, D, E). NO existen villas ni casas en este proyecto.`;
 
   if (isFirstInteraction) {
     return basePrompt + `\n\nPRIMERA INTERACCIÓN:
