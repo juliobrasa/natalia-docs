@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clips Universo Salado - Preview</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0f172a; color: white; font-family: system-ui, -apple-system, sans-serif; }
+        .header { background: linear-gradient(135deg, #0f172a, #1e293b); padding: 2rem 2rem 1rem; text-align: center; }
+        h1 { font-size: 1.8rem; font-weight: 300; margin-bottom: 0.5rem; }
+        h1 strong { color: #16a34a; font-weight: 700; }
+        .subtitle { color: #94a3b8; margin-bottom: 1.5rem; font-size: 0.95rem; }
+        .filter-row { display: flex; justify-content: center; gap: 0.6rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
+        .filter-label { color: #64748b; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.4rem; text-align: center; }
+        .tab { padding: 7px 18px; border-radius: 25px; border: 1px solid #334155; color: #94a3b8; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; text-decoration: none; background: transparent; }
+        .tab:hover, .tab.active { background: #16a34a; border-color: #16a34a; color: white; }
+        .tab-cat.active { background: #7c3aed; border-color: #7c3aed; }
+        .tab-cat:hover { background: #7c3aed; border-color: #7c3aed; }
+        .section-title { font-size: 1.1rem; color: #e2e8f0; padding: 1.5rem 2rem 0.8rem; max-width: 1200px; margin: 0 auto; display: flex; align-items: center; gap: 0.6rem; }
+        .section-title .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .dot-playa { background: #0ea5e9; }
+        .dot-golf { background: #16a34a; }
+        .dot-mix { background: #f59e0b; }
+        .counter { color: #64748b; font-size: 0.85rem; font-weight: 400; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; max-width: 1200px; margin: 0 auto; padding: 0.5rem 2rem 2rem; }
+        .card { background: #1e293b; border-radius: 16px; overflow: hidden; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-4px); }
+        .card video { width: 100%; max-height: 500px; object-fit: contain; background: #000; }
+        .card-body { padding: 1.2rem; }
+        .card-body h3 { font-size: 1rem; margin-bottom: 0.5rem; color: #e2e8f0; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-right: 6px; margin-bottom: 6px; }
+        .badge-reel { background: #7c3aed; }
+        .badge-story { background: #db2777; }
+        .badge-post { background: #2563eb; }
+        .badge-fb { background: #1d4ed8; }
+        .badge-playa { background: #0ea5e9; }
+        .badge-golf { background: #047857; }
+        .badge-mix { background: #f59e0b; color: #000; }
+        .caption { color: #94a3b8; font-size: 0.85rem; font-style: italic; margin-top: 0.5rem; line-height: 1.4; }
+        .meta { color: #64748b; font-size: 0.75rem; margin-top: 0.8rem; }
+        .download { display: inline-block; margin-top: 0.8rem; padding: 8px 16px; background: #16a34a; color: white; text-decoration: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; transition: background 0.2s; }
+        .download:hover { background: #15803d; }
+        .divider { border: 0; border-top: 1px solid #1e293b; max-width: 1200px; margin: 1rem auto; }
+        footer { text-align: center; padding: 2rem; color: #475569; font-size: 0.8rem; }
+        footer a { color: #16a34a; text-decoration: none; }
+        .music-info { text-align: center; padding: 0.5rem; color: #475569; font-size: 0.7rem; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Clips <strong>Universo Salado</strong></h1>
+    <p class="subtitle">15 videos con locución profesional (Ramona, es-DO) + música</p>
+
+    <p class="filter-label">Categoría</p>
+    <div class="filter-row">
+        <button class="tab tab-cat active" data-cat="all" onclick="applyFilters(this,'cat')">Todos (15)</button>
+        <button class="tab tab-cat" data-cat="playa" onclick="applyFilters(this,'cat')">Playa (5)</button>
+        <button class="tab tab-cat" data-cat="golf" onclick="applyFilters(this,'cat')">Golf (5)</button>
+        <button class="tab tab-cat" data-cat="mix" onclick="applyFilters(this,'cat')">Playa+Golf (5)</button>
+    </div>
+
+    <p class="filter-label">Formato</p>
+    <div class="filter-row">
+        <button class="tab active" data-fmt="all" onclick="applyFilters(this,'fmt')">Todos</button>
+        <button class="tab" data-fmt="reel" onclick="applyFilters(this,'fmt')">Reels</button>
+        <button class="tab" data-fmt="story" onclick="applyFilters(this,'fmt')">Stories</button>
+        <button class="tab" data-fmt="post" onclick="applyFilters(this,'fmt')">Posts</button>
+        <button class="tab" data-fmt="fb" onclick="applyFilters(this,'fmt')">Facebook</button>
+    </div>
+</div>
+
+<!-- ====== PLAYA ====== -->
+<div class="section-title section-playa"><span class="dot dot-playa"></span> Playa White Sands <span class="counter">5 clips · Música: Tropical Summer</span></div>
+<div class="grid">
+
+    <div class="card" data-type="reel" data-cat="playa">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-voz/reel-playa-15s.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Reel Playa White Sands</h3>
+            <span class="badge badge-reel">Reel</span><span class="badge" style="background:#475569">15s</span><span class="badge badge-playa">Playa</span>
+            <p class="caption">"Imagina despertar cada día con el Caribe a tus pies. Salado Golf and Beach. Tu nueva vida empieza aquí."</p>
+            <p class="meta">1080x1920 · 23MB · Voz: Ramona (es-DO)</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-voz/reel-playa-15s.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+    <div class="card" data-type="story" data-cat="playa">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-voz/story-playa-15s.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Story Playa White Sands</h3>
+            <span class="badge badge-story">Story</span><span class="badge" style="background:#475569">15s</span><span class="badge badge-playa">Playa</span>
+            <p class="caption">"Arena blanca, aguas cristalinas y la tranquilidad que mereces. White Sands, Bávaro. Esto es Universo Salado."</p>
+            <p class="meta">1080x1920 · 21MB · Voz: Ramona (es-DO)</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-voz/story-playa-15s.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+    <div class="card" data-type="reel" data-cat="playa">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-voz/reel-playa-largo.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Reel Largo - Universo Salado</h3>
+            <span class="badge badge-reel">Reel</span><span class="badge" style="background:#475569">44s</span><span class="badge badge-playa">Playa</span>
+            <p class="caption">"Hay lugares que no se describen, se sienten. En el corazón de Bávaro, donde el Caribe acaricia la arena de White Sands, nace Universo Salado..."</p>
+            <p class="meta">1080x1920 · 56MB · Voz: Ramona (es-DO)</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-voz/reel-playa-largo.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+    <div class="card" data-type="post" data-cat="playa">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-voz/post-cuadrado-15s.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Post Cuadrado - Playa</h3>
+            <span class="badge badge-post">Post</span><span class="badge" style="background:#475569">15s</span><span class="badge badge-playa">Playa</span>
+            <p class="caption">"Punta Cana, acceso directo a la playa. Universo Salado. Apartamentos desde 165.000€."</p>
+            <p class="meta">1080x1080 · 11MB · Voz: Ramona (es-DO)</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-voz/post-cuadrado-15s.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+    <div class="card" data-type="fb" data-cat="playa">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-voz/fb-playa-24s.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Facebook - Inversión Caribe</h3>
+            <span class="badge badge-fb">Facebook</span><span class="badge" style="background:#475569">24s</span><span class="badge badge-playa">Playa</span>
+            <p class="caption">"¿Buscas invertir en el Caribe? Universo Salado te ofrece apartamentos de lujo en primera línea de playa..."</p>
+            <p class="meta">1080x1920 · 31MB · Voz: Ramona (es-DO)</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-voz/fb-playa-24s.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+</div>
+
+<hr class="divider">
+
+<!-- ====== GOLF ====== -->
+<div class="section-title section-golf"><span class="dot dot-golf"></span> Golf - Cancha de Prácticas <span class="counter">5 clips · Música: Life of Riley · 4 videos drone 4K</span></div>
+<div class="grid">
+
+    <div class="card" data-type="reel" data-cat="golf">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-golf/reel-golf-15s.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Reel Golf - Campo de clase mundial</h3>
+            <span class="badge badge-reel">Reel</span><span class="badge" style="background:#475569">15s</span><span class="badge badge-golf">Golf</span>
+            <p class="caption">"Un campo de golf de clase mundial, a solo minutos de tu apartamento en Salado Golf and Beach Resort. Esto es vivir en grande."</p>
+            <p class="meta">1080x1920 · 16MB · Voz: Ramona (es-DO) · 3 tomas</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-golf/reel-golf-15s.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+    <div class="card" data-type="story" data-cat="golf">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-golf/story-golf-15s.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Story Golf - Swing con vista al Caribe</h3>
+            <span class="badge badge-story">Story</span><span class="badge" style="background:#475569">15s</span><span class="badge badge-golf">Golf</span>
+            <p class="caption">"Practica tu swing con vista al Caribe. Cancha de prácticas profesional dentro de White Sands, Punta Cana."</p>
+            <p class="meta">1080x1920 · 16MB · Voz: Ramona (es-DO) · 3 tomas</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-golf/story-golf-15s.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+    <div class="card" data-type="reel" data-cat="golf">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-golf/reel-golf-largo.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Reel Golf Largo - Estilo de vida</h3>
+            <span class="badge badge-reel">Reel</span><span class="badge" style="background:#475569">25s</span><span class="badge badge-golf">Golf</span>
+            <p class="caption">"Imagina salir de tu apartamento y en cinco minutos estar practicando golf con esta vista..."</p>
+            <p class="meta">1080x1920 · 27MB · Voz: Ramona (es-DO) · 5 tomas</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-golf/reel-golf-largo.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+    <div class="card" data-type="post" data-cat="golf">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-golf/post-golf-cuadrado-15s.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Post Golf - Mejor inversión</h3>
+            <span class="badge badge-post">Post</span><span class="badge" style="background:#475569">15s</span><span class="badge badge-golf">Golf</span>
+            <p class="caption">"Golf, playa y la mejor inversión del Caribe. Salado Golf and Beach Resort, Punta Cana."</p>
+            <p class="meta">1080x1080 · 9.6MB · Voz: Ramona (es-DO) · 3 tomas</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-golf/post-golf-cuadrado-15s.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+    <div class="card" data-type="fb" data-cat="golf">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-golf/fb-golf-vertical.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Facebook Golf - Calidad de vida</h3>
+            <span class="badge badge-fb">Facebook</span><span class="badge" style="background:#475569">20s</span><span class="badge badge-golf">Golf</span>
+            <p class="caption">"¿Te imaginas vivir a pasos de un campo de golf profesional en el Caribe? En Salado Golf and Beach Resort es posible."</p>
+            <p class="meta">1080x1920 · 22MB · Voz: Ramona (es-DO) · 4 tomas</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-golf/fb-golf-vertical.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+</div>
+
+<hr class="divider">
+
+<!-- ====== MIX PLAYA+GOLF ====== -->
+<div class="section-title section-mix"><span class="dot dot-mix"></span> Playa + Golf Combinados <span class="counter">5 clips · Música: Carefree · Tomas alternadas playa/golf</span></div>
+<div class="grid">
+
+    <div class="card" data-type="reel" data-cat="mix">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-mix/reel-mix-15s.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Reel Mix - Playa y golf en un solo lugar</h3>
+            <span class="badge badge-reel">Reel</span><span class="badge" style="background:#475569">15s</span><span class="badge badge-mix">Mix</span>
+            <p class="caption">"Playa y golf en un solo lugar. Salado Golf and Beach Resort, tu paraíso en Punta Cana."</p>
+            <p class="meta">1080x1920 · 18MB · Voz: Ramona (es-DO) · Golf+Playa+Golf</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-mix/reel-mix-15s.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+    <div class="card" data-type="story" data-cat="mix">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-mix/story-mix-15s.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Story Mix - Del green al mar</h3>
+            <span class="badge badge-story">Story</span><span class="badge" style="background:#475569">15s</span><span class="badge badge-mix">Mix</span>
+            <p class="caption">"Del green al mar en solo minutos. Así se vive en Universo Salado, White Sands, Bávaro."</p>
+            <p class="meta">1080x1920 · 25MB · Voz: Ramona (es-DO) · Playa+Golf+Playa</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-mix/story-mix-15s.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+    <div class="card" data-type="reel" data-cat="mix">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-mix/reel-mix-largo.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Reel Mix Largo - No tienes que elegir</h3>
+            <span class="badge badge-reel">Reel</span><span class="badge" style="background:#475569">28s</span><span class="badge badge-mix">Mix</span>
+            <p class="caption">"¿Playa o golf? En Universo Salado no tienes que elegir. Despierta con el sonido del mar, practica tu swing por la mañana y relájate en la playa por la tarde..."</p>
+            <p class="meta">1080x1920 · 39MB · Voz: Ramona (es-DO) · 6 tomas alternadas</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-mix/reel-mix-largo.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+    <div class="card" data-type="post" data-cat="mix">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-mix/post-mix-cuadrado-15s.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Post Mix - Playa, golf y el Caribe</h3>
+            <span class="badge badge-post">Post</span><span class="badge" style="background:#475569">15s</span><span class="badge badge-mix">Mix</span>
+            <p class="caption">"Playa, golf y el Caribe. Todo en Universo Salado, Punta Cana."</p>
+            <p class="meta">1080x1080 · 12MB · Voz: Ramona (es-DO) · Golf+Playa+Golf</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-mix/post-mix-cuadrado-15s.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+    <div class="card" data-type="fb" data-cat="mix">
+        <video controls preload="metadata" playsinline>
+            <source src="https://natalia.soporteclientes.net/images/clips-mix/fb-mix-vertical.mp4" type="video/mp4">
+        </video>
+        <div class="card-body">
+            <h3>Facebook Mix - Lo tienes todo</h3>
+            <span class="badge badge-fb">Facebook</span><span class="badge" style="background:#475569">20s</span><span class="badge badge-mix">Mix</span>
+            <p class="caption">"Imagina un lugar donde tienes playa de arena blanca y campo de golf profesional a solo pasos de tu apartamento. En Salado Golf and Beach Resort lo tienes todo."</p>
+            <p class="meta">1080x1920 · 29MB · Voz: Ramona (es-DO) · 4 tomas alternadas</p>
+            <a class="download" href="https://natalia.soporteclientes.net/images/clips-mix/fb-mix-vertical.mp4" download>Descargar</a>
+        </div>
+    </div>
+
+</div>
+
+<div class="music-info">
+    Playa: "Tropical Summer" (Pixabay) · Golf: "Life of Riley" Kevin MacLeod (CC BY 3.0) · Mix: "Carefree" Kevin MacLeod (CC BY 3.0) · Voz: edge-tts es-DO-RamonaNeural
+</div>
+
+<footer>
+    <p>Universo Salado · White Sands, Bávaro, Punta Cana · <a href="/admin">Panel Admin</a> · <a href="/">Landing</a></p>
+</footer>
+
+<script>
+let activeCat = 'all';
+let activeFmt = 'all';
+
+function applyFilters(btn, filterType) {
+    if (filterType === 'cat') {
+        activeCat = btn.dataset.cat;
+        document.querySelectorAll('.tab-cat').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+    } else {
+        activeFmt = btn.dataset.fmt;
+        document.querySelectorAll('.tab:not(.tab-cat)').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    document.querySelectorAll('.card').forEach(c => {
+        const matchCat = activeCat === 'all' || c.dataset.cat === activeCat;
+        const matchFmt = activeFmt === 'all' || c.dataset.type === activeFmt;
+        c.style.display = (matchCat && matchFmt) ? '' : 'none';
+    });
+
+    const sections = ['playa', 'golf', 'mix'];
+    const sectionEls = ['.section-playa', '.section-golf', '.section-mix'];
+    const visible = sections.map((s, i) => {
+        const cards = document.querySelectorAll('.card[data-cat="' + s + '"]');
+        const vis = [...cards].some(c => c.style.display !== 'none');
+        document.querySelector(sectionEls[i]).style.display = vis ? '' : 'none';
+        return vis;
+    });
+    document.querySelectorAll('.divider').forEach((d, i) => {
+        const before = visible.slice(0, i + 1).some(Boolean);
+        const after = visible.slice(i + 1).some(Boolean);
+        d.style.display = (before && after) ? '' : 'none';
+    });
+}
+</script>
+
+</body>
+</html>

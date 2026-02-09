@@ -1,0 +1,222 @@
+const express = require('express');
+const axios = require('axios');
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
+
+const app = express();
+app.use(express.json());
+
+// Configuración
+const MOLTBOT_GATEWAY = 'http://localhost:3100';
+const MOLTBOT_TOKEN = 'natalia-coordinator-token-2026';
+const PORT = process.env.PORT || 18790;
+const RAG_SERVICE = 'http://194.41.119.21:9000';
+const DEEPSEEK_API = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_KEY = 'sk-d47fe7b31106439baaf4fa35fe18b4f2';
+
+// Almacenar el número de teléfono del usuario actual
+let currentUserPhone = null;
+
+// Endpoint de salud
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', agent: 'natalia-whatsapp-bridge', rag_enabled: true });
+});
+
+// Endpoint principal para recibir mensajes de WhatsApp
+app.post('/api/chat', async (req, res) => {
+  try {
+    // Log completo de la request para debugging
+    console.log('[Natalia WhatsApp] Request headers:', JSON.stringify(req.headers, null, 2));
+    console.log('[Natalia WhatsApp] Request body keys:', Object.keys(req.body));
+
+    const { messages, max_tokens = 500, user_phone, user, metadata } = req.body;
+
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: 'Invalid request: messages array required' });
+    }
+
+    // Intentar extraer el número de teléfono de múltiples fuentes
+    const phoneNumber = user_phone || user || metadata?.phone || metadata?.from || req.headers['x-user-phone'];
+    if (phoneNumber) {
+      currentUserPhone = phoneNumber;
+      console.log('[Natalia WhatsApp] Phone number captured:', phoneNumber);
+    }
+
+    const userMessage = messages[messages.length - 1]?.content || '';
+    const userMessages = messages.filter(msg => msg.role === 'user');
+    const assistantMessages = messages.filter(msg => msg.role === 'assistant');
+    const isFirstInteraction = userMessages.length === 1 && assistantMessages.length === 0;
+
+    console.log('[Natalia WhatsApp] Received message:', userMessage);
+    console.log('[Natalia WhatsApp] User phone:', user_phone || currentUserPhone);
+    console.log('[Natalia WhatsApp] Conversation length:', messages.length);
+    console.log('[Natalia WhatsApp] First interaction:', isFirstInteraction);
+
+    // Buscar contexto en RAG
+    let ragContext = '';
+    let imageUrls = [];
+    const keywords = ['salado', 'resort', 'apartamento', 'punta cana', 'golf', 'playa', 'inmobiliaria', 'foto', 'imagen', 'picture', 'exterior', 'interior', 'muestra', 'ver', 'envia'];
+    const hasKeyword = keywords.some(kw => userMessage.toLowerCase().includes(kw));
+    const asksForPhotos = /foto|imagen|picture|muestra|ver|envia/i.test(userMessage);
+
+    if (hasKeyword) {
+      try {
+        console.log('[Natalia WhatsApp] Buscando en RAG...');
+        const ragQueryResponse = await axios.post(`${RAG_SERVICE}/query`, {
+          query: userMessage,
+          collection: 'marketing-inmobiliaria',
+          top_k: 5
+        }, {
+          timeout: 45000
+        });
+
+        if (ragQueryResponse.data && ragQueryResponse.data.answer) {
+          ragContext = ragQueryResponse.data.answer;
+          const sources = ragQueryResponse.data.sources || [];
+          imageUrls = sources
+            .map(s => s.payload?.image_url)
+            .filter(url => url && url.startsWith('http'));
+
+          console.log('[Natalia WhatsApp] Contexto RAG obtenido');
+          if (imageUrls.length > 0) {
+            console.log('[Natalia WhatsApp] Imágenes encontradas:', imageUrls.length);
+          }
+        }
+      } catch (ragError) {
+        console.warn('[Natalia WhatsApp] RAG query failed:', ragError.message);
+      }
+    }
+
+    // Preparar system prompt
+    let systemPrompt = getNataliaSystemPrompt(isFirstInteraction);
+    if (ragContext) {
+      systemPrompt += `\n\nCONTEXTO ADICIONAL:\n${ragContext}`;
+    }
+    if (imageUrls.length > 0 && asksForPhotos) {
+      systemPrompt += `\n\nIMPORTANTE: El usuario pidió ver fotos/imágenes.
+Tienes ${imageUrls.length} imágenes disponibles que se enviarán AUTOMÁTICAMENTE como archivos adjuntos.
+NO menciones que envías fotos, NO digas "te envío", simplemente describe qué fotos son.
+Responde BREVEMENTE, por ejemplo:
+"Aquí tienes vistas del resort en Punta Cana 🏖️"`;
+    }
+
+    // Llamar a DeepSeek
+    const deepseekResponse = await axios.post(DEEPSEEK_API, {
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages
+      ],
+      max_tokens,
+      temperature: 0.7
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    const response = deepseekResponse.data;
+    let assistantMessage = response.choices?.[0]?.message?.content;
+
+    if (!assistantMessage) {
+      throw new Error('No response from DeepSeek');
+    }
+
+    console.log('[Natalia WhatsApp] Response:', assistantMessage.substring(0, 100));
+
+    // Si hay imágenes, preparar para envío
+    const imagesToSend = (imageUrls.length > 0 && asksForPhotos) ? imageUrls.slice(0, 3) : [];
+
+    // Responder al usuario
+    const responseData = {
+      id: response.id || 'natalia-' + Date.now(),
+      object: 'chat.completion',
+      model: 'natalia-rag-deepseek',
+      choices: [{
+        message: {
+          role: 'assistant',
+          content: assistantMessage
+        },
+        finish_reason: response.choices[0].finish_reason || 'stop'
+      }],
+      usage: response.usage || {},
+      rag_used: !!ragContext,
+      images_found: imageUrls.length,
+      // Agregar URLs de imágenes en campo separado para que el cliente las procese
+      mediaUrls: imagesToSend
+    };
+
+    if (imagesToSend.length > 0) {
+      console.log('[Natalia WhatsApp] Agregadas', imagesToSend.length, 'URLs en mediaUrls:', imagesToSend);
+    }
+
+    res.json(responseData);
+
+  } catch (error) {
+    console.error('[Natalia WhatsApp] Error:', error.message);
+    res.status(500).json({
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+// System prompt de Natalia
+function getNataliaSystemPrompt(isFirstInteraction) {
+  const basePrompt = `Eres Natalia, coordinadora de Soltia Consulting Group.
+
+TU PERSONALIDAD:
+- Profesional experta en coordinación y gestión de equipos
+- Hablas de forma clara, directa y profesional pero cercana
+- Eficiente y resolutiva
+- Te enfocas en soluciones, no en problemas
+- Mantienes el contexto de la conversación
+
+TU ROL:
+- Coordinas servicios de hosting, dominios, desarrollo web y soporte técnico
+- Primer punto de contacto para clientes
+- Ayudas con consultas técnicas, comerciales y de soporte
+
+CONOCIMIENTO ESPECIAL:
+- Tienes acceso a información sobre Salado Golf & Beach Resort en Punta Cana
+- El resort cuenta con un campo de golf de 9 hoyos
+- Puedes proporcionar detalles sobre desarrollos, ubicaciones, amenidades
+- Tienes acceso a imágenes profesionales de Salado Resort
+
+MANEJO DE IMÁGENES:
+- Cuando el usuario pida fotos, las imágenes se enviarán AUTOMÁTICAMENTE
+- NO menciones URLs ni links
+- Confirma brevemente que envías las fotos
+- Usa emojis: 📸 🏖️ 🏌️ 🏠 ⛳
+
+ESTILO:
+- Mensajes concisos pero completos
+- Emojis ocasionales para calidez
+- Formato claro y fácil de leer
+
+NO HAGAS:
+- NUNCA digas que eres un bot o IA
+- NUNCA inventes precios sin base
+- NUNCA pidas contraseñas
+- NUNCA olvides el contexto`;
+
+  if (isFirstInteraction) {
+    return basePrompt + `\n\nPRIMERA INTERACCIÓN:
+Preséntate: "Hola, soy Natalia de Soltia Consulting. ¿En qué puedo ayudarte?"`;
+  } else {
+    return basePrompt + `\n\nCONVERSACIÓN EN CURSO:
+Ya te presentaste. NO vuelvas a saludar.
+Continúa naturalmente, manteniendo el contexto.`;
+  }
+}
+
+// Iniciar servidor
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[Natalia WhatsApp Bridge] Running on port ${PORT}`);
+  console.log(`[Natalia WhatsApp Bridge] RAG Service: ${RAG_SERVICE}`);
+  console.log(`[Natalia WhatsApp Bridge] Image Sending: ENABLED`);
+  console.log(`[Natalia WhatsApp Bridge] Context Management: ENABLED`);
+});
